@@ -1,0 +1,13 @@
+# Sorties de travail
+*.kfj
+*.mp4
+*.zip
+exports/
+out/
+
+# Systeme
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.local
