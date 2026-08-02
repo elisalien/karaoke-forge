@@ -7,7 +7,7 @@
 Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en séquence PNG avec canal alpha.
 Aucune installation, aucun compte, aucune donnée envoyée : tout tourne dans ton navigateur.
 
-[**→ Site & mode d'emploi**](https://VOTRE-COMPTE.github.io/karaoke-forge/) · [**→ Guide complet**](GUIDE.md) · [**→ Télécharger**](https://github.com/VOTRE-COMPTE/karaoke-forge/archive/refs/heads/main.zip)
+[**→ Site & mode d'emploi**](https://elisalien.github.io/karaoke-forge/) · [**→ Guide complet**](GUIDE.md) · [**→ Télécharger**](https://github.com/elisalien/karaoke-forge/archive/refs/heads/main.zip)
 
 </div>
 
@@ -29,12 +29,12 @@ Le tout tient dans `karaoke-forge.html` : 280 Ko, zéro dépendance, zéro rése
 
 ### Le plus simple
 
-Télécharge [**INSTALLER.bat**](https://raw.githubusercontent.com/VOTRE-COMPTE/karaoke-forge/main/INSTALLER.bat) et double-clique dessus.
+Télécharge [**INSTALLER.bat**](https://raw.githubusercontent.com/elisalien/karaoke-forge/main/INSTALLER.bat) et double-clique dessus.
 Il récupère la dernière version, l'installe dans `Documents\Karaoke Forge` et pose un raccourci sur le bureau.
 
 ### À la main
 
-1. [Télécharge le dépôt en `.zip`](https://github.com/VOTRE-COMPTE/karaoke-forge/archive/refs/heads/main.zip) et décompresse-le.
+1. [Télécharge le dépôt en `.zip`](https://github.com/elisalien/karaoke-forge/archive/refs/heads/main.zip) et décompresse-le.
 2. Double-clique sur **`START-FORGE.bat`**.
 
 ### Sans rien du tout
@@ -110,5 +110,5 @@ La sauvegarde automatique écrit dans le stockage local du navigateur, rien d'au
 ---
 
 <div align="center">
-<sub>Fait pour la scène. Tous droits réservés — <a href="https://github.com/VOTRE-COMPTE/karaoke-forge/issues">signaler un problème</a>.</sub>
+<sub>Fait pour la scène. Tous droits réservés — <a href="https://github.com/elisalien/karaoke-forge/issues">signaler un problème</a>.</sub>
 </div>

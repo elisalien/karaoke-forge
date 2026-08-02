@@ -1,4 +1,4 @@
-# KARAOKE FORGE — mode d'emploi
+# Karaoke Forge — le guide complet
 
 **Double-clic sur `START-FORGE.bat`.** Il ouvre l'app dans une fenêtre propre, sans onglets ni barre d'adresse.
 
@@ -8,7 +8,7 @@ Sans Python ni Node, le lanceur ouvre quand même `karaoke-forge.html` directeme
 
 Aucune connexion, aucune donnée envoyée : tout se passe sur ta machine.
 
-> Le `start.bat` du dossier appartient à l'autre projet (Karaoke VJ / `app` + `companion`) et n'a pas été touché.
+> Ce guide décrit **Karaoke Forge**. Pour l'installation et la vue d'ensemble, voir le [README](README.md).
 
 ---
 

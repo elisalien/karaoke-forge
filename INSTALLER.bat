@@ -9,7 +9,7 @@ rem   Telecharge la derniere version depuis GitHub, l'installe
 rem   dans Documents et pose un raccourci sur le bureau.
 rem ============================================================
 
-set "GH_USER=VOTRE-COMPTE"
+set "GH_USER=elisalien"
 set "GH_REPO=karaoke-forge"
 set "BRANCH=main"
 set "BASE=https://raw.githubusercontent.com/%GH_USER%/%GH_REPO%/%BRANCH%"
