@@ -183,7 +183,7 @@ const TL = {
   updateStat() {
     const all = allSyls();
     const done = all.filter(o => o.s.t0 != null).length;
-    $('#tlStat').textContent = `${done}/${all.length} calées · ${Math.round(S.tlZoom)} px/s`;
+    $('#tlStat').textContent = `${done}/${all.length} syllabes calées`;
     const n = selCount();
     $('#tlSel').textContent = n === 0 ? '—' : (n === 1 ? '1 syllabe' : `${n} syllabes`);
   },

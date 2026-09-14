@@ -24,7 +24,7 @@ function helpSections() {
       ['tenir la touche', 'Sur la dernière syllabe d\'une ligne : la note reste à l\'écran tant que tu tiens'],
       [K('Retour'), 'Annuler la dernière et reculer un peu'],
       [K('Échap'), 'Sortir du calage'],
-      ['Reprendre à la sélection', 'Repartir d\'une syllabe précise']
+      ['Reprendre à la syllabe choisie', 'Repartir d\'une syllabe précise']
     ]], ['p',
       `<b>Ralentis la musique</b> si le débit est rapide : ${K('0.25×')} ${K('0.5×')} ${K('0.75×')} ${K('1×')} en haut. ` +
       `<em>Les timings restent ceux du morceau à vitesse normale</em>, et la latence de la carte son est compensée. ` +
@@ -58,13 +58,13 @@ function helpSections() {
       [K('Échap') + ' pendant un glissé', 'Rien ne bouge : le geste est annulé si la fenêtre perd la main']
     ]], ['p',
       `Une syllabe ne peut pas traverser sa voisine : les blocs s'arrêtent au contact. ` +
-      `Le mode ${K('RIPPLE')} emmène tout ce qui suit.`]]],
+      `Le mode ${K('DÉCALER LA SUITE')} emmène tout ce qui suit.`]]],
 
     ['TIMELINE — CLAVIER', [['t', [
       [K('Espace'), 'Lecture / pause'],
       [K('←') + K('→') + ' / ' + K('↑') + K('↓'), 'Syllabe / ligne précédente ou suivante'],
       [K('V') + ' · ' + K('C'), 'Outil sélection · outil lame'],
-      [K('S') + ' · ' + K('R'), 'Aimantation · ripple'],
+      [K('S') + ' · ' + K('R'), 'Aimantation · décaler la suite'],
       [K('+') + K('−') + ' · ' + K('F'), 'Zoom · tout voir (si F n\'est pas ta touche de calage)'],
       [K('Suppr') + ' · ' + K('Maj') + '+' + K('Suppr'), 'Effacer le timing · supprimer les syllabes'],
       [K('M') + ' · ' + K('Ctrl') + '+' + K('A'), 'Fusionner · sélectionner la ligne'],

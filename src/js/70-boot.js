@@ -368,7 +368,7 @@ function onKey(e) {
     case 'v': setTool('V'); break;
     case 'c': setTool('C'); break;
     case 's': S.snap = !S.snap; $('#ckSnap').classList.toggle('on', S.snap); toast('Aimantation ' + (S.snap ? 'activée' : 'désactivée')); break;
-    case 'r': S.ripple = !S.ripple; $('#ckRipple').classList.toggle('on', S.ripple); toast('Ripple ' + (S.ripple ? 'activé' : 'désactivé')); break;
+    case 'r': S.ripple = !S.ripple; $('#ckRipple').classList.toggle('on', S.ripple); toast('Décaler la suite : ' + (S.ripple ? 'activé' : 'désactivé')); break;
     case 'm': mergeSelection(); break;
     case 'i': setEdgeAtPlayhead('in'); break;
     case 'o': setEdgeAtPlayhead('out'); break;

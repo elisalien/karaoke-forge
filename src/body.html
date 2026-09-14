@@ -78,8 +78,10 @@
             <span class="kbd">Retour</span> annule la dernière. <b>Ralentis</b> avec les boutons de vitesse en haut.
           </div>
           <div class="rowbtn">
-            <select id="tapKey" title="Touche de calage" style="flex:2"></select>
-            <button id="bTapFrom" style="flex:3" title="Reprendre le calage à partir de la syllabe sélectionnée">Reprendre à la sélection</button>
+            <button id="bTapFrom" title="Reprendre le calage à partir de la syllabe sélectionnée (clic sur une syllabe dans la timeline ou à l'étape 4)">Reprendre à la syllabe choisie</button>
+          </div>
+          <div class="rowbtn">
+            <select id="tapKey" title="Touche de calage"></select>
           </div>
           <span class="more" data-box="box3" id="more3">autres méthodes</span>
           <div class="moreBox" id="box3">
@@ -99,14 +101,14 @@
             <button id="bLoop" data-help="Rejoue la ligne sélectionnée en boucle : tu ajustes en écoutant le résultat tourner.">↻ BOUCLER LA LIGNE</button>
             <button id="bSnapSyl" style="flex:0 0 auto" title="Aimanter la sélection sur l'attaque audio la plus proche" data-help="Décale les syllabes sélectionnées jusqu'au départ de note le plus proche détecté dans l'audio.">♫</button>
           </div>
+          <div class="rowbtn">
+            <button id="bClearL" class="dgr" title="Le texte reste, seul le placement est effacé" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la syllabe choisie ».">✕ EFFACER LE CALAGE DE LA PHRASE</button>
+          </div>
           <div class="hint">
             Clic sur une syllabe pour t'y placer · <span class="kbd">Alt</span>+clic la coupe en deux<br>
             <span class="kbd">Maj</span>+<span class="kbd">←</span><span class="kbd">→</span> décale de 10&nbsp;ms · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> annule
           </div>
           <div id="sylList"></div>
-          <div class="rowbtn">
-            <button id="bClearL" class="dgr" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la sélection ».">✕ RETIRER LA PHRASE DE LA TIMELINE</button>
-          </div>
         </div>
       </section>
 
@@ -181,12 +183,12 @@
       <div class="sep"></div>
       <button id="bZoomOut" title="Dézoomer (−)">−</button>
       <button id="bZoomIn" title="Zoomer (+)">+</button>
-      <button id="bZoomFit" title="Voir tout le morceau (F)">TOUT</button>
+      <button id="bZoomFit" title="Voir tout le morceau (F)">VOIR TOUT</button>
       <div class="sep"></div>
       <button id="ckFollow" class="tgl on" title="La vue suit la lecture" data-help="La vue suit automatiquement la tête de lecture pendant le jeu.">SUIVRE</button>
       <button id="ckSnap" class="tgl on" title="Aimantation (S)" data-help="Les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms. <em>Alt</em> désactive le temps d'un glissé.">AIMANT</button>
-      <button id="ckRipple" class="tgl" title="Ripple (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">RIPPLE</button>
-      <button id="ckScrub" class="tgl on" title="Son au déplacement" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">♪</button>
+      <button id="ckRipple" class="tgl" title="Décaler aussi tout ce qui suit (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">DÉCALER LA SUITE</button>
+      <button id="ckScrub" class="tgl on" title="Entendre le son pendant qu'on déplace la tête de lecture" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">♪ SON</button>
       <div class="sep"></div>
       <span class="lbl" id="tlSel">—</span>
       <div class="spacer"></div>

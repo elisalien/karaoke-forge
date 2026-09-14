@@ -49,7 +49,7 @@ Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent su
 - **Frappe** la touche de calage (`F` par défaut) au début de chaque syllabe.
 - **Tiens-la** sur la dernière syllabe d'une ligne : la note reste à l'écran tant que tu tiens. Un simple tap donne une fin raisonnable, sans jamais remplir tout le silence jusqu'à la ligne suivante.
 - **`Retour arrière`** annule la dernière et recule un peu.
-- **Reprendre à la sélection** repart d'une syllabe précise.
+- **Reprendre à la syllabe choisie** repart d'une syllabe précise.
 
 **Ralentis la musique** avec `0.25×` `0.5×` `0.75×` `1×` en haut. Les timings restent ceux du morceau à vitesse normale, et la latence de la carte son est compensée. Si tes frappes tombent toujours un peu en retard, règle **Décalage frappe** sous *autres méthodes*.
 
@@ -82,7 +82,7 @@ Cale seulement la première et la dernière syllabe d'une ligne, puis **♫ Pose
 | `Maj`+molette · clic molette · pavé tactile horizontal | faire défiler |
 | `Alt` pendant un glissé | désactiver l'aimantation |
 
-Un glissé ne commence qu'après quelques pixels : un clic un peu tremblant ne décale rien. Une syllabe s'arrête au contact de sa voisine au lieu de la traverser. **RIPPLE** emmène tout ce qui suit.
+Un glissé ne commence qu'après quelques pixels : un clic un peu tremblant ne décale rien. Une syllabe s'arrête au contact de sa voisine au lieu de la traverser. **DÉCALER LA SUITE** emmène tout ce qui suit.
 
 **Outil lame (`C`)** : le clic coupe une syllabe en deux à l'endroit exact. **Aimant (`S`)** : les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms.
 

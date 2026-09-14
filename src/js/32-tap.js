@@ -156,5 +156,5 @@ function clearLine(li) {
   selOne(li, 0);
   S.tapIdx = Math.max(0, allSyls().findIndex(o => o.li === li && o.si === 0));
   renderSylList(); TL.invalidate(); requestRender();
-  toast(`Phrase ${li + 1} retirée de la timeline — « Reprendre à la sélection » pour la recaler`);
+  toast(`Phrase ${li + 1} retirée de la timeline — « Reprendre à la syllabe choisie » pour la recaler`);
 }
