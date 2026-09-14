@@ -95,7 +95,8 @@ const Live = {
       if (f && !(c.title + ' ' + c.artist).toLowerCase().includes(f)) continue;
       const row = document.createElement('div');
       row.className = 'item' + (S.song.id === c.id ? ' cur' : '');
-      row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(c.artist)}${c.duration ? ' · ' + fmtTime(c.duration, false) : ''}</span></div>${badges(c)}`;
+      const sub = [c.artist, c.duration ? fmtTime(c.duration, false) : ''].filter(Boolean).join(' · ');
+      row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(sub)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       const inSet = Lib.setlist.includes(c.id);
       const add = document.createElement('button'); add.textContent = inSet ? '✓' : '+ SET'; add.disabled = inSet;

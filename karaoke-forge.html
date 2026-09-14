@@ -708,10 +708,12 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
         <div class="segRow" id="lvStep" data-help="<em>CONTINU</em> : les paroles défilent seules. <em>LIGNE PAR LIGNE</em> : chaque ligne se joue puis s'arrête, → lance la suivante. <em>L</em>.">
           <button data-step="flow" class="on">CONTINU</button><button data-step="line">LIGNE PAR LIGNE</button>
         </div>
-        <div class="row wide"><label>Vitesse</label><div class="segRow tight" id="lvRate"></div></div>
-        <div class="row wide"><label>Recaler</label><div class="segRow tight">
+        <div class="lbl2">VITESSE</div>
+        <div class="segRow tight" id="lvRate"></div>
+        <div class="lbl2">RECALER LES PAROLES</div>
+        <div class="segRow tight">
           <button id="lvNudgeM" title="Paroles en retard de 100 ms (↓)">−0,1 s ↓</button>
-          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s ↑</button></div></div>
+          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s ↑</button></div>
         <div class="hint" id="lvHint"></div>
       </div></div>
 
@@ -6587,7 +6589,8 @@ const Live = {
       if (f && !(c.title + ' ' + c.artist).toLowerCase().includes(f)) continue;
       const row = document.createElement('div');
       row.className = 'item' + (S.song.id === c.id ? ' cur' : '');
-      row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(c.artist)}${c.duration ? ' · ' + fmtTime(c.duration, false) : ''}</span></div>${badges(c)}`;
+      const sub = [c.artist, c.duration ? fmtTime(c.duration, false) : ''].filter(Boolean).join(' · ');
+      row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(sub)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       const inSet = Lib.setlist.includes(c.id);
       const add = document.createElement('button'); add.textContent = inSet ? '✓' : '+ SET'; add.disabled = inSet;
