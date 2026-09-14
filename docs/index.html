@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Karaoke Forge — studio de karaoké animé, dans un seul fichier</title>
-<meta name="description" content="Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en séquence PNG avec canal alpha. Un seul fichier HTML, aucune installation, aucun réseau.">
+<title>Karaoke Forge — prépare et joue tes karaokés animés</title>
+<meta name="description" content="Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en PNG alpha, ou joue-les en live dans Resolume et OBS. Un seul fichier HTML, aucune installation.">
 <meta property="og:title" content="Karaoke Forge">
-<meta property="og:description" content="Un studio de karaoké animé, dans un seul fichier HTML.">
+<meta property="og:description" content="Prépare tes karaokés animés, puis joue-les en live — dans un seul fichier HTML.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2305060c'/><path d='M8 7h4v7l6-7h5l-7 8 7 10h-5l-6-8v8H8z' fill='%2331f6ff'/></svg>">
 
@@ -108,7 +108,7 @@ section > .wrap > h2{
 .intro{color:var(--dim); max-width:34em; margin-bottom:var(--s7)}
 
 /* ─── parcours : 4 étapes, une grille stricte ─── */
-.steps{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line)}
+.steps{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line)}
 .step{background:var(--bg); padding:var(--s5) var(--s5) var(--s6)}
 .step .n{
   font-family:var(--mono); font-size:26px; color:var(--dimmer);
@@ -198,10 +198,10 @@ footer a:hover{color:var(--cy)}
 <header>
   <div class="wrap">
     <h1 class="mark"><span>KARAOKE</span><span>FORGE</span></h1>
-    <p class="lede">Un studio de karaoké animé, dans un seul fichier&nbsp;HTML.</p>
+    <p class="lede">Prépare tes karaokés animés, puis joue-les en live — dans un seul fichier&nbsp;HTML.</p>
     <p class="sub">
       Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en séquence PNG
-      avec canal alpha. Rien à installer, rien à créer, rien qui sorte de ta machine.
+      avec canal alpha — ou envoie-les en direct dans Resolume et OBS. Rien à installer, aucun compte.
     </p>
 
     <div class="cta">
@@ -211,9 +211,9 @@ footer a:hover{color:var(--cy)}
     </div>
 
     <div class="facts">
-      <span><b>280 Ko</b> — un seul fichier</span>
+      <span><b>380 Ko</b> — un seul fichier</span>
       <span><b>0</b> dépendance</span>
-      <span><b>0</b> requête réseau</span>
+      <span><b>hors ligne</b> une fois préparé</span>
       <span><b>0</b> compte</span>
     </div>
   </div>
@@ -223,22 +223,22 @@ footer a:hover{color:var(--cy)}
 <section>
   <div class="wrap">
     <p class="kicker">Le parcours</p>
-    <h2>Quatre étapes. Chacune ouvre la suivante.</h2>
+    <h2>Préparer, styler, jouer.</h2>
     <p class="intro">
-      Le panneau de gauche <em>est</em> le mode d'emploi : une seule étape ouverte à la fois,
-      elle se referme quand elle est faite. Clique un titre pour y revenir.
+      Trois espaces de travail. Dans <em>Préparer</em>, le panneau de gauche est le mode d'emploi :
+      l'étape utile s'ouvre d'elle-même, un clic sur un titre y revient.
     </p>
 
     <div class="steps">
       <div class="step">
         <div class="n">①</div>
         <h3>Audio</h3>
-        <p>Dépose ton fichier, ou clique la zone.</p>
+        <p>Dépose ton fichier — ou récupère l'audio d'une vidéo YouTube.</p>
       </div>
       <div class="step">
         <div class="n">②</div>
         <h3>Paroles</h3>
-        <p>Colle le texte, clique <em>Découper en syllabes</em>.</p>
+        <p>Colle le texte, ou trouve-le en ligne, souvent déjà synchronisé.</p>
       </div>
       <div class="step">
         <div class="n">③</div>
@@ -250,11 +250,16 @@ footer a:hover{color:var(--cy)}
         <h3>Ajuster</h3>
         <p>Tu peaufines à la souris et au clavier, sur une vraie timeline.</p>
       </div>
+      <div class="step">
+        <div class="n">⑤</div>
+        <h3>Ranger</h3>
+        <p><code>Ctrl+S</code> : le morceau, audio compris, est prêt pour le live.</p>
+      </div>
     </div>
 
     <p class="after">
-      Puis le style à droite — cinq ambiances qui changent tout d'un coup, ou 97 réglages
-      si ça te démange — et <strong>⏺ Exporter</strong>.
+      Puis <strong>Style</strong> — huit ambiances qui changent tout d'un coup, une centaine de réglages,
+      des réactions au rythme — et <strong>⏺ Exporter</strong>, ou <strong>Live</strong>.
     </p>
   </div>
 </section>
@@ -310,6 +315,45 @@ footer a:hover{color:var(--cy)}
           Sauvegarde automatique une seconde et demie après chaque modification,
           reprise proposée au démarrage, avertissement avant de fermer.
           Ce que tu tapes n'est jamais écrasé dans ton dos.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section>
+  <div class="wrap">
+    <p class="kicker">En live</p>
+    <h2>Pensé pour la soirée, piloté au clavier.</h2>
+
+    <div class="feats">
+      <div class="feat">
+        <h3>Un set prêt, même hors ligne</h3>
+        <p>
+          Les morceaux préparés vivent dans la bibliothèque du navigateur, audio compris.
+          Le set de la soirée se compose en deux clics ; <code>1</code>…<code>9</code> et <code>Entrée</code> les chargent.
+        </p>
+      </div>
+      <div class="feat">
+        <h3>Un écran scène à capturer</h3>
+        <p>
+          Une fenêtre sans interface, plein écran sur le second moniteur, pour Resolume ou OBS.
+          Fond uni pour l'incrustation en un clic : les effets qui salissent la couleur se coupent tout seuls.
+        </p>
+      </div>
+      <div class="feat">
+        <h3>Quand le son vient des platines</h3>
+        <p>
+          Les paroles déroulent sur l'horloge de l'app : ligne suivante, recalage de 100&nbsp;ms,
+          et un mode ligne par ligne quand le DJ ne suit pas la version calée.
+        </p>
+      </div>
+      <div class="feat">
+        <h3>Le texte suit le tempo</h3>
+        <p>
+          Pulsation, éclat et rafales de particules sur chaque temps. Le tempo se détecte dans l'audio,
+          se frappe au TAP, ou arrive d'Ableton Link via le companion.
         </p>
       </div>
     </div>
@@ -384,7 +428,7 @@ footer a:hover{color:var(--cy)}
         <h3>Séquence PNG</h3>
         <p>
           Pour un vrai canal alpha : After Effects, Premiere, Resolume, TouchDesigner.
-          Mets d'abord <strong>FX → Fond → Type</strong> sur <code>Transparent (alpha)</code>.
+          Mets d'abord <strong>Décor → Fond → Type</strong> sur <code>Transparent (alpha)</code>.
         </p>
         <p>
           Dossier si le navigateur le permet, sinon <code>.zip</code> écrit sur le disque,
@@ -408,9 +452,10 @@ footer a:hover{color:var(--cy)}
     <h2>Ce qui entre, ce qui sort.</h2>
 
     <table>
+      <tr><td>Bibliothèque</td><td>Dans le navigateur : paroles, timings, style et audio. <code>Ctrl+S</code> y range le morceau ouvert.</td></tr>
       <tr><td>Projet</td><td><code>.kfj</code> — paroles, timings et l'intégralité des réglages visuels. L'audio n'est pas embarqué : recharge-le à l'ouverture.</td></tr>
-      <tr><td>Timing</td><td><code>.ass</code> (tags <code>{\k}</code>, lus et écrits au centième) · <code>.lrc</code> classique et enrichi.</td></tr>
-      <tr><td>Polices</td><td><code>.ttf</code> · <code>.otf</code> · <code>.woff2</code> — par le bouton <em>A&nbsp;FONT</em> ou par glisser-déposer dans la fenêtre.</td></tr>
+      <tr><td>Timing</td><td><code>.ass</code> (tags <code>{\k}</code>, lus et écrits au centième) · <code>.lrc</code> classique, enrichi, refrains multiples.</td></tr>
+      <tr><td>Polices</td><td><code>.ttf</code> · <code>.otf</code> · <code>.woff2</code> — par le menu <em>Fichier</em> ou par glisser-déposer dans la fenêtre.</td></tr>
       <tr><td>Sortie</td><td><code>.mp4</code> jusqu'en 4K · séquence <code>.png</code> en 16:9, 9:16 ou 1:1.</td></tr>
     </table>
   </div>
@@ -420,12 +465,12 @@ footer a:hover{color:var(--cy)}
 <section>
   <div class="wrap">
     <p class="kicker">Vie privée</p>
-    <h2>Rien ne sort. Vraiment rien.</h2>
+    <h2>Ton travail reste chez toi.</h2>
     <p class="intro" style="margin-bottom:0">
-      Aucune requête réseau, aucun compte, aucune télémétrie, aucune dépendance chargée
-      depuis un CDN. Ton audio et tes paroles ne quittent jamais la machine — la sauvegarde
-      automatique écrit dans le stockage local du navigateur, et c'est tout.
-      Le fichier fait 280&nbsp;Ko&nbsp;: tu peux l'ouvrir dans un éditeur de texte et vérifier.
+      Aucun compte, aucune télémétrie, aucune dépendance chargée depuis un CDN. Ton audio et tes
+      paroles restent dans le stockage du navigateur. Une seule chose sort, et seulement quand tu
+      cliques <em>Chercher</em>&nbsp;: le texte de ta recherche de paroles, envoyé à lrclib.net.
+      Le code source est lisible, dossier <code>src</code>.
     </p>
   </div>
 </section>

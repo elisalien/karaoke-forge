@@ -51,6 +51,10 @@ call :get karaoke-forge.html  "l application"
 call :get START-FORGE.bat     "le lanceur"
 call :get _forge-server.js    "le serveur local"
 call :get GUIDE.md            "le mode d emploi"
+if not exist "%DEST%\companion" mkdir "%DEST%\companion" 2>nul
+call :get START-COMPANION.bat "le lanceur du companion"
+call :get companion/forge-companion.js "le companion (Link, YouTube)"
+call :get companion/LISEZ-MOI.md "la notice du companion"
 
 if "%FAILED%"=="1" (
   echo.
@@ -68,8 +72,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$w = New-Object -ComObject WScript.Shell;" ^
   "$d = $w.SpecialFolders('Desktop');" ^
   "$s = $w.CreateShortcut((Join-Path $d 'Karaoke Forge.lnk'));" ^
-  "$s.TargetPath = '%DEST%\START-FORGE.bat';" ^
-  "$s.WorkingDirectory = '%DEST%';" ^
+  "$s.TargetPath = (Join-Path $env:DEST 'START-FORGE.bat');" ^
+  "$s.WorkingDirectory = $env:DEST;" ^
   "$s.Description = 'Karaoke Forge';" ^
   "$s.Save()" >nul 2>nul
 
@@ -126,7 +130,7 @@ rem  %1 = nom du fichier   %2 = libelle affiche
 echo    [*] Telechargement : %~2
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;" ^
-  "try { Invoke-WebRequest -UseBasicParsing -Uri '%BASE%/%~1' -OutFile '%DEST%\%~1'; exit 0 }" ^
+  "try { Invoke-WebRequest -UseBasicParsing -Uri '%BASE%/%~1' -OutFile (Join-Path $env:DEST '%~1'); exit 0 }" ^
   "catch { exit 1 }" >nul 2>nul
 if errorlevel 1 (
   echo        ECHEC : %~1

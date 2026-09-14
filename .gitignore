@@ -5,9 +5,17 @@
 exports/
 out/
 
+# Companion : cache des MP3 et binaires yt-dlp / ffmpeg
+companion/.cache/
+companion/bin/
+
 # Systeme
 .DS_Store
 Thumbs.db
 desktop.ini
 *.log
 *.local
+
+# Outils / dependances
+node_modules/
+graphify-out/

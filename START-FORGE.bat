@@ -50,16 +50,35 @@ if not defined RUNNER (
 )
 if not defined RUNNER goto :filemode
 
-rem ------------------------------------------------------------ PORT LIBRE
+rem ------------------------------------------------------------ PORT FIXE
+rem La bibliotheque et la sauvegarde automatique sont rangees par le
+rem navigateur SOUS L'ADRESSE de la page : changer de port, c'est retrouver
+rem une bibliotheque vide. On garde donc toujours 8777.
+set "PORT=8777"
+set "REUSE="
+set "ALTPORT="
+netstat -ano -p tcp 2>nul | find ":8777 " >nul
+if errorlevel 1 goto :portok
+
+rem 8777 est pris : si c'est deja un serveur Karaoke Forge, on le reutilise
+powershell -NoProfile -Command "try{if((Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 'http://127.0.0.1:8777/karaoke-forge.html').StatusCode -eq 200){exit 0}}catch{};exit 1" >nul 2>nul
+if not errorlevel 1 (
+  set "REUSE=1"
+  goto :portok
+)
+
+rem sinon, un port de secours - avec une bibliotheque separee
 set "PORT="
-for /l %%N in (8777,1,8797) do (
+for /l %%N in (8778,1,8797) do (
   if not defined PORT (
     netstat -ano -p tcp 2>nul | find ":%%N " >nul
     if errorlevel 1 set "PORT=%%N"
   )
 )
 if not defined PORT goto :filemode
+set "ALTPORT=1"
 
+:portok
 set "URL=http://127.0.0.1:%PORT%/%APPFILE%"
 
 cls
@@ -68,14 +87,34 @@ echo    K A R A O K E   F O R G E
 echo    ---------------------------------------------------
 echo    Adresse     : %URL%
 echo    Navigateur  : %BRNAME%
-echo    Serveur     : %RUNNER%
+if defined REUSE (echo    Serveur     : deja lance, reutilise) else (echo    Serveur     : %RUNNER%)
 echo.
+if defined ALTPORT (
+  echo    ATTENTION : le port 8777 est occupe par un autre programme.
+  echo    L'app s'ouvre sur un port de secours : sa bibliotheque et sa
+  echo    sauvegarde automatique seront vides. Ferme l'autre programme
+  echo    puis relance pour retrouver ta bibliotheque habituelle.
+  echo.
+)
 echo    Laisse cette fenetre ouverte pendant que tu travailles.
 echo    Appuie sur une touche pour fermer le serveur.
 echo.
 
-if "%RUNARGS%"=="PY"   start "KaraokeForgeServer" /min "%RUNNER%" -m http.server %PORT% --bind 127.0.0.1
-if "%RUNARGS%"=="NODE" start "KaraokeForgeServer" /min "%RUNNER%" "%~dp0_forge-server.js" %PORT%
+if not defined REUSE (
+  if "%RUNARGS%"=="PY"   start "KaraokeForgeServer" /min "%RUNNER%" -m http.server %PORT% --bind 127.0.0.1
+  if "%RUNARGS%"=="NODE" start "KaraokeForgeServer" /min "%RUNNER%" "%~dp0_forge-server.js" %PORT%
+)
+
+rem ------------------------------------------------------------- COMPANION
+rem Facultatif : Ableton Link et audio YouTube. Demarre seulement si Node est
+rem present et si aucun companion ne tourne deja (START-COMPANION.bat).
+set "COMPANION="
+where node >nul 2>nul && set "COMPANION=1"
+if not exist "%~dp0companion\forge-companion.js" set "COMPANION="
+netstat -ano -p tcp 2>nul | find ":17002 " >nul && set "COMPANION="
+if defined COMPANION start "KaraokeForgeCompanion" /min node "%~dp0companion\forge-companion.js"
+if defined COMPANION echo    Companion   : actif (Ableton Link, audio YouTube)
+if defined COMPANION echo.
 
 rem laisse au serveur le temps d'ecouter
 ping -n 2 127.0.0.1 >nul
@@ -89,9 +128,9 @@ if defined BROWSER (
 pause >nul
 
 rem ------------------------------------------------------- ARRET DU SERVEUR
-for /f "tokens=5" %%A in ('netstat -ano -p tcp ^| findstr ":%PORT% " ^| findstr LISTENING') do (
-  taskkill /f /pid %%A >nul 2>nul
-)
+rem On n'arrete que ce que CE lanceur a demarre.
+if not defined REUSE for /f "tokens=5" %%A in ('netstat -ano -p tcp ^| findstr ":%PORT% " ^| findstr LISTENING') do taskkill /f /pid %%A >nul 2>nul
+if defined COMPANION for /f "tokens=5" %%A in ('netstat -ano -p tcp ^| findstr ":17002 " ^| findstr LISTENING') do taskkill /f /pid %%A >nul 2>nul
 exit /b 0
 
 rem =========================================================== MODE FICHIER
@@ -104,9 +143,9 @@ echo    Ni Python ni Node.js n'ont ete trouves : ouverture
 echo    directe du fichier.
 echo.
 echo    L'application fonctionne, et l'export MP4 aussi.
-echo    Seul l'export en sequence PNG sera indisponible
-echo    (le navigateur bloque le selecteur de dossier en
-echo    mode file://).
+echo    Seul l'export en sequence PNG passera par un .zip.
+echo    La bibliotheque ouverte ainsi est distincte de celle
+echo    du mode serveur.
 echo.
 echo    Pour tout debloquer : installe Node.js (nodejs.org)
 echo    ou Python (python.org), puis relance ce raccourci.

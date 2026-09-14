@@ -2,10 +2,10 @@
 
 # KARAOKE FORGE
 
-**Un studio de karaoké animé, dans un seul fichier HTML.**
+**Prépare tes karaokés animés, puis joue-les en live — dans un seul fichier HTML.**
 
-Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en séquence PNG avec canal alpha.
-Aucune installation, aucun compte, aucune donnée envoyée : tout tourne dans ton navigateur.
+Cale tes paroles à l'oreille, choisis une ambiance, exporte en MP4 ou en séquence PNG avec canal alpha,
+ou envoie-les en direct dans Resolume et OBS.
 
 [**→ Site & mode d'emploi**](https://elisalien.github.io/karaoke-forge/) · [**→ Guide complet**](GUIDE.md) · [**→ Télécharger**](https://github.com/elisalien/karaoke-forge/archive/refs/heads/main.zip)
 
@@ -15,15 +15,22 @@ Aucune installation, aucun compte, aucune donnée envoyée : tout tourne dans to
 
 ## Ce que c'est
 
-Un outil autonome pour fabriquer des vidéos de karaoké — ou des visuels de paroles pour du VJing.
-Le tout tient dans `karaoke-forge.html` : 280 Ko, zéro dépendance, zéro réseau.
+Un outil autonome pour fabriquer des vidéos de karaoké **et** afficher des paroles en soirée, pour du VJing.
+L'application tient dans `karaoke-forge.html` : aucune installation, aucun compte.
 
-- **Calage à l'oreille** — tu frappes une touche sur chaque syllabe pendant que le morceau joue, au ralenti si besoin.
-- **Timeline de montage** — sélection, lame, aimantation, ripple, annuler/rétablir sur chaque opération.
-- **Découpe syllabique du français** — automatique, corrigeable au tiret ou à la souris.
-- **Cinq ambiances** — Chrome Y2K, Néon Rose, Holo Aero, Terminal, Minimal. 97 réglages en mode expert.
-- **Particules GPU** — émises sur le front de remplissage, à l'intérieur des glyphes.
-- **Export déterministe** — MP4 (H.264/AAC, WebCodecs) ou séquence PNG en alpha, rendus hors temps réel : aucune image perdue.
+Trois espaces de travail, en haut de la fenêtre :
+
+| | | |
+|---|---|---|
+| **① PRÉPARER** | audio, paroles, calage | Tu frappes une touche sur chaque syllabe pendant que le morceau joue, au ralenti si besoin. Timeline de montage, annuler/rétablir sur chaque opération. |
+| **② STYLE** | le look | Huit ambiances prêtes, une centaine de réglages, particules GPU nées dans les lettres, réactions au rythme. |
+| **③ LIVE** | la soirée | Un set de morceaux prêts, un écran scène sans interface à capturer, un pilotage pensé pour le clavier — que le son vienne de l'app ou des platines. |
+
+- **Paroles en ligne** — recherche LRCLIB intégrée ; les versions synchronisées arrivent avec le début de chaque ligne, les syllabes se posent ensuite sur les attaques de l'audio.
+- **Bibliothèque hors ligne** — `Ctrl+S` range le morceau, audio compris, dans le navigateur.
+- **Son extérieur** — quand la musique vient d'ailleurs, les paroles déroulent sur l'horloge de l'app : ligne suivante, recalage ±100 ms, mode ligne par ligne.
+- **Rythme** — tempo détecté dans l'audio, TAP, ou Ableton Link via le companion.
+- **Export déterministe** — MP4 (H.264/AAC, WebCodecs) ou séquence PNG en alpha, rendus hors temps réel.
 
 ## Installation
 
@@ -39,73 +46,57 @@ Il récupère la dernière version, l'installe dans `Documents\Karaoke Forge` et
 
 ### Sans rien du tout
 
-Ouvre `karaoke-forge.html` directement dans Chrome ou Edge. Tout fonctionne, sauf l'export en séquence PNG vers un dossier — il repasse par un `.zip`.
+Ouvre `karaoke-forge.html` directement dans Chrome ou Edge. Tout fonctionne, sauf l'export PNG vers un dossier (il repasse par un `.zip`).
 
-> **Pourquoi un lanceur ?** `START-FORGE.bat` démarre un petit serveur local (Python ou Node, selon ce qui est présent) et ouvre l'app dans une fenêtre sans onglets. Le serveur ne sert qu'à débloquer le sélecteur de dossier pour l'export PNG — il n'écoute que sur `127.0.0.1` et rien ne sort de la machine.
+> **Pourquoi un lanceur ?** `START-FORGE.bat` démarre un petit serveur local (Python ou Node) et ouvre l'app dans une fenêtre sans onglets. Il débloque le sélecteur de dossier de l'export PNG, et lance aussi le companion si Node est présent. Tout n'écoute que sur `127.0.0.1`.
 
-**Navigateur requis :** Chrome ou Edge récent (l'export MP4 utilise WebCodecs). Firefox et Safari font tourner l'app mais pas l'export vidéo.
+**Navigateur requis :** Chrome ou Edge récent (WebGL2, WebCodecs).
 
-## Le parcours, en quatre étapes
+## Le companion (facultatif)
 
-| | | |
-|---|---|---|
-| **①** | **AUDIO** | Dépose ton fichier, ou clique la zone. |
-| **②** | **PAROLES** | Colle le texte, clique **DÉCOUPER EN SYLLABES**. |
-| **③** | **CALAGE** | **◈ CALER EN ÉCOUTANT** : tu frappes une touche sur chaque syllabe. |
-| **④** | **AJUSTER** | Tu peaufines à la souris et au clavier. |
-
-Puis le style à droite, et **⏺ EXPORTER**.
-
-Le panneau de gauche **est** le mode d'emploi : chaque étape se referme quand elle est faite et ouvre la suivante.
+`START-COMPANION.bat` lance un petit service local, sans dépendance, pour ce que le navigateur ne sait pas faire seul :
+**Ableton Link** (via [Carabiner](https://github.com/Deep-Symmetry/carabiner)) et **l'audio de vidéos YouTube** (via yt-dlp).
+Voir [companion/LISEZ-MOI.md](companion/LISEZ-MOI.md).
 
 ## Raccourcis essentiels
 
-| Action | Raccourci |
-|---|---|
-| Lecture / pause | `Espace` |
-| Ralentir / accélérer | `J` / `L` |
-| Entrer dans le calage | `T` |
-| Valider une syllabe | `F` |
-| Annuler la dernière syllabe | `Retour arrière` |
-| Boucler la ligne | `B` |
-| Annuler / rétablir | `Ctrl+Z` / `Ctrl+Maj+Z` |
-| Décaler la sélection de ±10 ms | `Maj` + `←` `→` |
-| Sauver / exporter | `Ctrl+S` / `Ctrl+E` |
+| Préparer | | Live | |
+|---|---|---|---|
+| `Espace` | lecture / pause | `Espace` | lecture / pause |
+| `T` | entrer dans le calage | `←` `→` | ligne précédente / suivante |
+| `F` | valider une syllabe (tenir = note longue) | `↑` `↓` | paroles en avance / en retard |
+| `Retour arrière` | annuler la dernière syllabe | `1`…`9` · `Entrée` | charger un morceau du set |
+| `Ctrl+Z` | annuler | `N` · `K` · `T` | masquer le texte · fond vert · tap tempo |
+| `Ctrl+S` | ranger dans la bibliothèque | `Alt+1` `2` `3` | changer d'espace |
 
-La liste complète est dans le [**guide**](GUIDE.md#raccourcis).
-
-## Export
-
-**MP4** — H.264 + AAC via WebCodecs, muxé image par image. Rendu hors temps réel : chaque image est calculée puis encodée, donc aucune image perdue même sur une scène lourde.
-
-**Séquence PNG** — pour un vrai canal alpha (After Effects, Premiere, Resolume, TouchDesigner). Mets d'abord **FX → FOND → Type** sur `Transparent (alpha)`.
-
-Deux exports avec les mêmes réglages donnent le même fichier, image pour image : la simulation de particules avance par pas fixe avec un générateur aléatoire à graine.
-
-## Formats
-
-| | |
-|---|---|
-| **Projet** | `.kfj` — paroles, timings et tous les réglages visuels (l'audio n'est pas embarqué) |
-| **Timing** | `.ass` (tags `{\k}`, lus et écrits) · `.lrc` classique et enrichi |
-| **Polices** | `.ttf` · `.otf` · `.woff2` — par le bouton **A FONT** ou par glisser-déposer |
-| **Sortie** | `.mp4` · séquence `.png` (dossier ou `.zip`) |
-
-## Contenu du dépôt
-
-```
-karaoke-forge.html    l'application entière — un seul fichier, aucune dépendance
-START-FORGE.bat       lanceur Windows (serveur local + fenêtre propre)
-_forge-server.js      serveur statique minimal, utilisé par le lanceur si Node est présent
-INSTALLER.bat         installation en un double-clic (télécharge + raccourci bureau)
-GUIDE.md              le mode d'emploi complet
-docs/index.html       la page publiée sur GitHub Pages
-```
+La liste complète est dans le [**guide**](GUIDE.md) et dans l'app (`F1`).
 
 ## Vie privée
 
-Aucune requête réseau, aucun compte, aucune télémétrie. Ton audio et tes paroles ne quittent jamais la machine.
-La sauvegarde automatique écrit dans le stockage local du navigateur, rien d'autre.
+Aucun compte, aucune télémétrie. L'audio et les paroles restent sur la machine, dans le stockage du navigateur.
+Une seule chose sort, et seulement quand tu cliques **Chercher** : le texte de ta recherche de paroles, envoyé à [lrclib.net](https://lrclib.net).
+
+## Pour faire évoluer l'app
+
+Le fichier distribué est assemblé à partir de `src/` :
+
+```
+src/index.html      squelette de la page
+src/body.html       l'interface
+src/css/            les styles
+src/js/NN-*.js      le code, recollé dans l'ordre des numéros (une seule portée partagée)
+src/vendor/         mp4-muxer (MIT)
+tools/build.mjs     l'assemblage — aucune dépendance
+companion/          le service local facultatif
+```
+
+Après une modification :
+
+```bash
+node tools/build.mjs --check
+```
+
+`MAJ-KARAOKE-FORGE.bat` (dossier parent) reconstruit puis publie sur GitHub.
 
 ---
 

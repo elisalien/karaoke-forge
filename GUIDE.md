@@ -1,182 +1,216 @@
 # Karaoke Forge — le guide complet
 
-**Double-clic sur `START-FORGE.bat`.** Il ouvre l'app dans une fenêtre propre, sans onglets ni barre d'adresse.
+**Double-clic sur `START-FORGE.bat`.** L'app s'ouvre dans une fenêtre propre, sans onglets ni barre d'adresse. Laisse la fenêtre noire du lanceur ouverte pendant que tu travailles.
 
-Le lanceur démarre un petit serveur local (Python ou Node, selon ce qui est présent). Ça permet à l'export PNG d'écrire directement dans un dossier de ton choix. Laisse la fenêtre noire ouverte pendant que tu travailles ; une touche l'arrête.
+Sans Python ni Node, le lanceur ouvre directement `karaoke-forge.html` : tout fonctionne, seul l'export PNG passe par un `.zip` au lieu d'un dossier.
 
-Sans Python ni Node, le lanceur ouvre quand même `karaoke-forge.html` directement : **tout fonctionne**, l'export PNG passe simplement par un `.zip` au lieu d'un dossier. Tu peux aussi double-cliquer le `.html` toi-même.
-
-Aucune connexion, aucune donnée envoyée : tout se passe sur ta machine.
-
-> Ce guide décrit **Karaoke Forge**. Pour l'installation et la vue d'ensemble, voir le [README](README.md).
+Dans l'app, **`F1`** ouvre l'aide, et **MODE SURVOL** explique chaque bouton que tu survoles.
 
 ---
 
-## Le parcours
+## Trois espaces de travail
 
-Le panneau de gauche **est** le mode d'emploi : quatre étapes, une seule ouverte à la fois. Chacune se referme quand elle est faite et ouvre la suivante. Clique un titre pour y revenir.
+En haut à gauche, ou **`Alt+1`**, **`Alt+2`**, **`Alt+3`** :
+
+| | |
+|---|---|
+| **① PRÉPARER** | Charger l'audio, les paroles, caler chaque syllabe, ranger le morceau. |
+| **② STYLE** | L'ambiance : typo, couleurs, particules, décor, réactions au rythme. |
+| **③ LIVE** | La soirée : le set, l'écran scène pour Resolume ou OBS, le pilotage au clavier. |
+
+---
+
+## ① PRÉPARER — le parcours
+
+Le panneau de gauche est le mode d'emploi. L'étape utile s'ouvre d'elle-même ; un clic sur un titre y revient.
 
 | | | |
 |---|---|---|
-| **①** | **AUDIO** | Dépose ton fichier, ou clique la zone. |
-| **②** | **PAROLES** | Colle le texte, clique **DÉCOUPER EN SYLLABES**. |
+| **①** | **AUDIO** | Dépose ton fichier ou clique la zone. *Depuis YouTube* récupère l'audio d'une vidéo (companion requis). |
+| **②** | **PAROLES** | Colle le texte et clique **DÉCOUPER EN SYLLABES** — ou *chercher les paroles en ligne*. |
 | **③** | **CALAGE** | **◈ CALER EN ÉCOUTANT** : tu frappes une touche sur chaque syllabe. |
-| **④** | **AJUSTER** | Apparaît une fois calé : tu peaufines à la souris et au clavier. |
+| **④** | **AJUSTER** | Tu peaufines à la souris et au clavier. |
+| **⑤** | **RANGER** | **Ctrl+S** : le morceau part dans la bibliothèque, prêt pour le live. |
 
-Puis le style à droite, et **⏺ EXPORTER**.
+Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent sur l'horloge de l'app.
 
-## Le style, en un clic
+### Paroles en ligne
 
-Cinq **ambiances** en haut du panneau de droite changent tout d'un coup : typo, couleurs, particules, décor.
+*Chercher les paroles en ligne* interroge [LRCLIB](https://lrclib.net), une base gratuite. Seul le texte cherché part sur le réseau, et seulement au clic.
 
-**CHROME Y2K** · **NÉON ROSE** · **HOLO AERO** · **TERMINAL** · **MINIMAL**
+- Une version **synchronisée** arrive avec le début de chaque ligne déjà posé. Charge l'audio, puis **③ → autres méthodes → ♫ Poser sur les attaques** : les syllabes se placent sur les vrais départs de notes.
+- Une version **texte seul** remplit les paroles ; il reste à les caler.
+- Vérifie que la durée affichée correspond à ton audio : une autre version du morceau décalerait tout. L'app te prévient si l'écart dépasse 3 secondes.
 
-En dessous, **SIMPLE** n'affiche que la vingtaine de réglages qui comptent vraiment. **EXPERT** ouvre les quatre-vingt-dix-sept : physique des particules, post-traitement, mise en page fine. Commence en SIMPLE, bascule si ça te démange.
+### Caler en écoutant
 
-Le menu **⋯ FICHIER** regroupe le reste : sauver ou rouvrir un projet, importer/exporter les timings en `.ass` ou `.lrc`, charger une police.
+**◈ CALER EN ÉCOUTANT** lance la lecture un peu avant le point de reprise et affiche en grand la syllabe à frapper, la précédente et les suivantes.
 
-## Caler les paroles
+- **Frappe** la touche de calage (`F` par défaut) au début de chaque syllabe.
+- **Tiens-la** sur la dernière syllabe d'une ligne : la note reste à l'écran tant que tu tiens. Un simple tap donne une fin raisonnable, sans jamais remplir tout le silence jusqu'à la ligne suivante.
+- **`Retour arrière`** annule la dernière et recule un peu.
+- **Reprendre à la sélection** repart d'une syllabe précise.
 
-Le principe est simple : tu écoutes, tu frappes une touche au début de chaque syllabe chantée.
+**Ralentis la musique** avec `0.25×` `0.5×` `0.75×` `1×` en haut. Les timings restent ceux du morceau à vitesse normale, et la latence de la carte son est compensée. Si tes frappes tombent toujours un peu en retard, règle **Décalage frappe** sous *autres méthodes*.
 
-**◈ CALER EN ÉCOUTANT** lance la lecture deux secondes avant le point de reprise et affiche en grand, par-dessus l'aperçu, la syllabe à frapper — avec la précédente au-dessus et les suivantes en dessous, plus une barre de progression. Tu n'as plus à chercher où tu en es.
+### Ajuster
 
-**Ralentis la musique.** Les boutons `0.25×` `0.5×` `0.75×` `1×` en haut de la fenêtre jouent le morceau moins vite pour te laisser le temps. **Les timings enregistrés restent ceux du morceau à vitesse normale** — c'est la machine qui remet l'échelle d'aplomb, pas toi. `J` ralentit d'un cran, `L` accélère, `K` met en pause.
-
-**Rate une syllabe ?** `Retour arrière` annule la dernière et recule un peu. Tu n'as jamais à tout refaire : *Reprendre à la sélection* repart d'une syllabe précise.
-
-### Affiner sans tout refaire
-
-- **↻ BOUCLER LA LIGNE** (ou `B`) rejoue la ligne en boucle pendant que tu ajustes — la zone bouclée s'affiche en vert dans la timeline.
+- **↻ BOUCLER LA LIGNE** (ou `B`) rejoue la ligne en boucle.
 - `Maj`+`←` `→` décale la sélection de 10 ms, `Maj`+`Alt`+flèches de 1 ms.
 - `I` et `O` calent début et fin sur la tête de lecture.
-- **♫** aimante les syllabes sélectionnées sur le départ de note le plus proche détecté dans l'audio.
+- **♫** aimante les syllabes sélectionnées sur l'attaque la plus proche.
 - `Ctrl+Z` annule, `Ctrl+Maj+Z` rétablit — chaque opération sur les timings est mémorisée.
 
-### Deux raccourcis pour une ligne entière
+Cale seulement la première et la dernière syllabe d'une ligne, puis **♫ Poser sur les attaques** ou **↔ Répartir régulièrement** place les autres.
 
-Cale seulement la première et la dernière syllabe d'une ligne, puis (sous *autres méthodes*) :
+---
 
-- **♫ Poser sur les attaques** — les syllabes intermédiaires se placent sur les vrais départs de notes, trouvés par analyse spectrale de l'audio.
-- **↔ Répartir régulièrement** — elles s'étalent au prorata de leur longueur.
+## La timeline
 
-Les deux sont instantanés, entièrement locaux, et ne demandent aucun téléchargement.
+| Geste | Effet |
+|---|---|
+| Clic sur la règle ou l'onde | placer la tête de lecture ; glisser pour la déplacer |
+| Clic sur une syllabe | la sélectionner et s'y placer — **un clic ne déplace jamais rien** |
+| Glisser le corps d'une syllabe | déplacer la syllabe et toute la sélection |
+| Glisser un bord | changer le début ou la fin (le curseur devient ↔) |
+| Glisser une ligne (piste du milieu) | déplacer toute la ligne d'un bloc |
+| Glisser dans le vide | lasso de sélection |
+| `Ctrl`+clic · `Maj`+clic | ajouter / retirer · sélectionner une plage |
+| Double-clic | zoomer sur la ligne ; sur la règle : tout voir |
+| Clic droit | menu : effacer, couper, fusionner, aimanter, boucler… |
+| Molette | zoom centré sur le curseur |
+| `Maj`+molette · clic molette · pavé tactile horizontal | faire défiler |
+| `Alt` pendant un glissé | désactiver l'aimantation |
 
-## Raccourcis
+Un glissé ne commence qu'après quelques pixels : un clic un peu tremblant ne décale rien. Une syllabe s'arrête au contact de sa voisine au lieu de la traverser. **RIPPLE** emmène tout ce qui suit.
 
-**Lecture** — `Espace` fait toujours play/pause, y compris en mode TAP.
+**Outil lame (`C`)** : le clic coupe une syllabe en deux à l'endroit exact. **Aimant (`S`)** : les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms.
+
+### Clavier
 
 | Action | Raccourci |
 |---|---|
 | Lecture / pause | `Espace` |
-| Pause | `K` |
-| Accélérer ×2 puis ×4 | `L` |
-| Ralentir ×0,5 puis ×0,25 | `J` |
-| Début / fin du morceau | `Début` / `Fin` |
-| Syllabe précédente / suivante | `←` `→` |
-| Ligne précédente / suivante | `↑` `↓` |
+| Pause · accélérer · ralentir | `K` · `L` · `J` |
+| Syllabe / ligne précédente ou suivante | `←` `→` / `↑` `↓` |
+| Entrer / sortir du calage | `T` / `Échap` |
+| Outil sélection · lame | `V` · `C` |
+| Zoom · tout voir | `+` `−` · `F` |
+| Effacer le timing · supprimer les syllabes | `Suppr` · `Maj+Suppr` |
+| Fusionner · sélectionner la ligne | `M` · `Ctrl+A` |
+| Ranger · exporter le projet · exporter la vidéo | `Ctrl+S` · `Ctrl+Maj+S` · `Ctrl+E` |
 
-**Calage**
-
-| Action | Raccourci |
-|---|---|
-| Entrer / sortir du calage | `T` — `Échap` pour sortir |
-| Valider une syllabe | `F` — modifiable juste sous le bouton |
-| Annuler la dernière syllabe | `Retour arrière` |
-| Boucler la ligne | `B` |
-| Annuler / rétablir | `Ctrl+Z` / `Ctrl+Maj+Z` |
-| Décaler la sélection de ±10 ms | `Maj` + `←` `→` |
-| Décaler de ±1 ms | `Maj` + `Alt` + `←` `→` |
-| Début / fin sur la tête de lecture | `I` / `O` |
-
-**Timeline**
-
-| Action | Raccourci |
-|---|---|
-| Outil sélection / lame | `V` / `C` |
-| Aimantation, ripple | `S`, `R` |
-| Zoom avant / arrière, voir tout | `+` `−`, `F` |
-| Effacer le timing de la sélection | `Suppr` |
-| Supprimer les syllabes | `Maj` + `Suppr` |
-| Fusionner la sélection | `M` |
-| Sélectionner toute la ligne | `Ctrl` + `A` |
-| Tout désélectionner | `Échap` |
-| Sauver / exporter | `Ctrl` + `S` / `Ctrl` + `E` |
-
-## Se déplacer dans le temps
-
-- **Attrape la tête de lecture** (le triangle vert) et fais-la glisser : elle s'épaissit, le curseur passe en ↔ et l'heure exacte s'affiche à côté.
-- **Glisser sur la règle ou l'onde** fait la même chose, en sautant d'abord à l'endroit cliqué.
-- **Glisser le compteur** en haut de la fenêtre le transforme en molette de défilement — `Maj` pour la course rapide, `Alt` pour le réglage au millième.
-- La case **♪ SCRUB** fait entendre un court extrait sous le curseur pendant que tu te déplaces.
-
-Pendant un déplacement, la lecture est suspendue une seule fois puis reprend exactement là où tu lâches : plus de hoquet audio. Si l'aimant est actif, la tête colle aux débuts de syllabes ; `Alt` la libère.
-
-## La timeline, comme un banc de montage
-
-- **Clic** sur la règle ou l'onde : placer la tête de lecture. Sur un bloc : le sélectionner.
-- **Glisser** le corps d'un bloc le déplace, ses bords changent début et fin. Toute la sélection suit.
-- **Glisser dans le vide** trace un lasso de sélection multiple.
-- **`Ctrl`+clic** ajoute ou retire un bloc, **`Maj`+clic** sélectionne toute la plage.
-- **Clic droit** ouvre le menu : effacer le timing, supprimer, couper, fusionner, caler sur la tête de lecture, répartir la ligne…
-- **Outil lame (`C`)** : le clic coupe une syllabe en deux à l'endroit exact, texte partagé au prorata.
-- **Aimant** : les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms — un repère orange confirme l'accroche. `Alt` le désactive le temps d'un glissé.
-- **Ripple** : déplacer une syllabe décale d'autant toutes celles qui suivent. Pratique quand un couplet entier est en retard.
-- **Molette** : zoom centré sur le curseur. `Maj`+molette : défilement.
-
-**Découpe syllabique.** L'algorithme gère les cas courants du français (`ma-gni-fi-que`, `Né-on`, `cons-tel-la-tion`). Pour corriger :
-
-- écris un tiret dans les paroles pour forcer une coupe : `ma-gni-fi-que` ;
-- ou, dans l'étape **④ AJUSTER**, `Alt`+clic coupe une syllabe en deux, `Alt`+`Maj`+clic la fusionne avec la suivante ;
-- ou l'outil lame (`C`) sur la timeline, qui coupe à l'endroit exact du clic.
-
-**Import / export de timing.** Par le menu **⋯ FICHIER** : `.ass` (les tags `{\k}` sont lus et écrits au centième de seconde), `.lrc` classique et enrichi. Tu peux partir d'un fichier karaoké existant, ou reprendre tes timings dans un autre logiciel.
-
-**Projet.** Toujours dans **⋯ FICHIER**, *Sauver le projet* écrit un `.kfj` (paroles + timings + tous les réglages visuels). `Ctrl+S` marche aussi, même le curseur dans les paroles. L'audio n'est pas embarqué : recharge-le à l'ouverture.
-
-## Ton travail est protégé
-
-- **Sauvegarde automatique.** Toute modification est enregistrée dans le navigateur une seconde et demie plus tard. Si l'app se ferme mal, elle te propose de reprendre au démarrage — en indiquant l'ancienneté et le nombre de syllabes retrouvées.
-- **Avertissement avant de fermer** l'onglet avec des modifications non sauvegardées.
-- **`Ctrl+Z` remonte tout**, y compris un redécoupage. Rien n'efface l'historique dans ton dos.
-- **Redécouper prévient.** Si des syllabes sont déjà calées, un message te le dit et te renvoie vers *Redécouper sans perdre les timings*.
-- **Ouvrir un projet demande confirmation** si le travail en cours n'est pas sauvegardé.
-- **Ce que tu tapes dans les paroles n'est jamais écrasé** par une opération sur la timeline.
+**Découpe syllabique.** L'algorithme gère les cas courants du français. Pour corriger : un tiret dans les paroles (`ma-gni-fi-que`), `Alt`+clic dans la liste pour couper, `Alt`+`Maj`+clic pour fusionner, ou l'outil lame.
 
 ---
 
-## Particules
+## ② STYLE
 
-Elles naissent **sur le front de remplissage**, à l'intérieur des glyphes. Le moteur échantillonne la couverture réelle de la police (pas une boîte englobante), donc elles sortent bien des lettres.
+Huit **ambiances** changent tout d'un coup : **CHROME Y2K** · **NÉON ROSE** · **HOLO AERO** · **TERMINAL** · **MINIMAL** · **KAWAII** · **SAKURA** · **FRUTIGER**.
 
-- **Débit** : particules par seconde pendant que la syllabe se remplit.
-- **Burst syllabe** : bouffée instantanée à l'attaque de chaque syllabe.
-- **Bande d'émission** : épaisseur de la zone active derrière le front. Petite = filet net, grande = nappe.
-- **Toute la surface** : émet depuis toute la syllabe au lieu du seul front.
-- **Hérite du fill** : la particule prend la couleur exacte du dégradé à l'endroit où elle naît.
-- **Graine** : change l'aléatoire. Même graine = même résultat, image par image.
+**SIMPLE** n'affiche que l'essentiel, **EXPERT** ouvre tout. Double-clic sur la valeur d'un curseur pour revenir au défaut.
 
-Sept types : étincelles, poussière, pixels Y2K, bulles aero, éclats, étoiles, traînées.
+**Anticipation** (TEXTE → MISE EN PAGE) affiche la ligne suivante un peu avant qu'elle soit chantée, dès que la précédente est finie.
 
-**Performance.** Les particules tournent sur GPU (quads instanciés, un seul appel de dessin) et la simulation est en `Float32Array` sans allocation par image. Le compteur en haut à droite de l'aperçu affiche le nombre vivant. Si ça rame : baisse **Qualité aperçu** à 50 % (onglet FX → RENDU) — ça n'affecte **pas** l'export, qui est toujours rendu à la résolution pleine.
+### Particules
+
+Elles naissent sur le front de remplissage, à l'intérieur des glyphes. Onze formes : étincelles, poussière, pixels, bulles, éclats, étoiles, traînées, pétales, notes, confettis, cœurs. **Graine** : même graine, même résultat, image par image.
+
+### Rythme
+
+Onglet **RYTHME** : coche **Réagir au rythme**, puis donne le tempo.
+
+- **♫ DÉTECTER DANS L'AUDIO** trouve le tempo et cale la grille sur le morceau.
+- **TAP** (touche `T` dans STYLE et LIVE) : frappe au moins deux fois en rythme.
+- **÷2** · **×2** corrigent une erreur d'octave ; **CALER** dit « le temps, c'est maintenant ».
+- Source **MORCEAU** : la grille suit l'audio et se retrouve à l'identique à l'export. **TAP** et **LINK** suivent l'horloge murale, pour le live.
+
+Réactions : pulsation du texte, éclat du glow et du bloom, rafale de particules sur chaque temps, sécheresse de la retombée.
+
+---
+
+## ③ LIVE
+
+### Le set
+
+- La **bibliothèque** contient tout ce que tu as rangé avec `Ctrl+S`, audio compris, disponible hors ligne. **ÉDITER** rouvre un morceau dans PRÉPARER.
+- Le **set** est la liste de la soirée : **+ SET** depuis la bibliothèque ou depuis *chercher des paroles en ligne*. `↑` `↓` pour l'ordre.
+- Clic : charger. Double-clic : charger et lancer. `1`…`9` chargent directement, `Entrée` passe au suivant.
+- **Garder l'ambiance en cours** : un look constant pour toute la soirée, quel que soit le style rangé avec chaque morceau.
+
+### Jouer
+
+| | |
+|---|---|
+| **AUDIO DU MORCEAU** | L'app joue le son rangé avec le morceau ; les paroles suivent à la milliseconde. |
+| **SON EXTÉRIEUR** | La musique vient des platines. Les paroles se déroulent sur l'horloge de l'app : lance-les sur la première ligne chantée, recale avec les flèches. |
+| **CONTINU** | Les paroles défilent seules. |
+| **LIGNE PAR LIGNE** | Chaque ligne se joue puis s'arrête ; `→` lance la suivante. Le filet de sécurité quand le DJ ne suit pas la version calée. |
+
+| Action | Raccourci |
+|---|---|
+| Lecture / pause | `Espace` |
+| Début de ligne ou ligne précédente · ligne suivante | `←` · `→` |
+| Paroles en avance / en retard de 100 ms | `↑` / `↓` |
+| Morceau n° du set · suivant · précédent | `1`…`9` · `Entrée` · `Maj+Entrée` |
+| Tap tempo | `T` |
+| Masquer / réafficher le texte | `N` |
+| Fond vert / ambiance | `K` |
+| Ligne par ligne · son extérieur · rythme | `L` · `X` · `R` |
+| Ouvrir l'écran scène | `O` |
+
+### L'écran scène
+
+**OUVRIR L'ÉCRAN SCÈNE** ouvre une fenêtre qui n'affiche que l'image. Glisse-la sur le second écran, double-clic (ou `F`) pour le plein écran ; le curseur disparaît tout seul. Pendant ce temps l'aperçu de la fenêtre de contrôle se met en pause pour épargner le GPU — coche *Garder l'aperçu ici aussi* si ta machine suit.
+
+- **Resolume** : source *Screen Capture* sur la fenêtre, ou OBS en intermédiaire (capture de fenêtre → NDI ou Spout).
+- **Incrustation** : fond **VERT** ou **BLEU**, puis un chroma key. Grille, vignette, grain et aberration sont coupés automatiquement et reviennent sur **AMBIANCE**.
+- Si le navigateur bloque la fenêtre, autorise les pop-ups pour la page.
+
+---
+
+## Le companion (facultatif)
+
+`START-COMPANION.bat` — ou automatiquement avec `START-FORGE.bat` si Node.js est installé. Il apporte :
+
+- **Ableton Link** : lance [Carabiner](https://github.com/Deep-Symmetry/carabiner), puis choisis la source **LINK** dans RYTHME.
+- **Audio YouTube** : étape ① → *depuis YouTube*. Dépose `yt-dlp.exe` et `ffmpeg.exe` dans `companion\bin`.
+
+Détails : [companion/LISEZ-MOI.md](companion/LISEZ-MOI.md).
+
+---
+
+## Ton travail est protégé
+
+- **Sauvegarde automatique** dans le navigateur une seconde et demie après chaque modification. Au démarrage, l'app propose de reprendre, et recharge l'audio depuis la bibliothèque si le morceau y est.
+- **Avertissement** avant de fermer ou de remplacer des timings non rangés.
+- **`Ctrl+Z` remonte tout**, y compris un redécoupage, un import ou l'effacement de tous les timings.
+- **Ce que tu tapes dans les paroles n'est jamais écrasé** par une opération sur la timeline.
+
+> **Bibliothèque et adresse.** Le navigateur range la bibliothèque sous l'adresse de la page. `START-FORGE.bat` utilise donc toujours la même (`127.0.0.1:8777`). Ouvrir le fichier `.html` directement, ou via un autre navigateur, donne une bibliothèque distincte. Pour transporter un morceau d'une machine à l'autre : **⋯ FICHIER → Exporter le projet (.kfj)**.
 
 ---
 
 ## Export
 
-**MP4** — H.264 + AAC via WebCodecs, muxé image par image. Le rendu est *offline* : chaque image est calculée puis encodée, donc aucune image perdue même si la scène est lourde. Si ton navigateur propose un sélecteur de fichier, la vidéo est écrite directement sur le disque en streaming (pas de limite mémoire).
+**MP4** — H.264 + AAC via WebCodecs, rendu image par image : aucune image perdue. Si le navigateur propose un sélecteur de fichier, la vidéo est écrite directement sur le disque.
 
-**Séquence PNG** — pour un vrai canal alpha (After Effects, Premiere, Resolume, TouchDesigner). Mets d'abord **FX → FOND → Type** sur `Transparent (alpha)`.
+**Séquence PNG** — pour un vrai canal alpha (After Effects, Premiere, Resolume, TouchDesigner). Règle d'abord **DÉCOR → FOND → Type** sur `Transparent (alpha)`. Destination : un dossier si possible, sinon un `.zip`.
 
-L'app choisit la meilleure destination disponible : un **dossier** si le navigateur propose un sélecteur (le mieux, sans limite de taille), sinon un **.zip écrit directement sur le disque**, sinon un **.zip téléchargé** — ce dernier passe partout, y compris en `file://`, mais reste borné par la mémoire (l'export s'arrête proprement au-delà de ~3,4 Go en te disant de choisir un dossier).
+**Déterminisme.** Particules à pas fixe et graine, pré-roll de 1,2 s, grille rythmique calée sur le morceau : deux exports identiques donnent le même fichier.
 
-**Déterminisme.** La simulation de particules avance par pas fixe avec un générateur aléatoire à graine, et un pré-roll de 1,2 s est simulé avant la première image exportée. Deux exports identiques donnent le même fichier, image pour image.
+## Formats
 
----
+| | |
+|---|---|
+| **Bibliothèque** | dans le navigateur : paroles, timings, style et audio |
+| **Projet** | `.kfj` — paroles, timings et réglages (sans l'audio) |
+| **Timings** | `.ass` (`{\k}` lus et écrits) · `.lrc` classique, enrichi, refrains multiples, `[offset:]` |
+| **Polices** | `.ttf` · `.otf` · `.woff2` — menu FICHIER ou glisser-déposer |
+| **Sortie** | `.mp4` jusqu'en 4K · séquence `.png` en 16:9, 9:16 ou 1:1 |
 
-## Notes
+Glisse n'importe quel fichier dans la fenêtre : audio, paroles `.txt`, timings, projet ou police.
 
-- Charge ta propre police avec **A FONT** (`.ttf`, `.otf`, `.woff2`) — ou glisse-la simplement dans la fenêtre.
-- La résolution d'export se choisit dans **FX → RENDU** (jusqu'au 4K, formats 16:9, 9:16, 1:1).
-- Double-clic sur la valeur d'un curseur pour revenir à sa valeur par défaut.
-- Clic sur le titre d'un groupe de réglages pour le replier.
+## Performance
+
+Le compteur en haut à droite de l'aperçu indique les particules vivantes. Si ça rame : baisse **Qualité aperçu** (DÉCOR → RENDU) ou **Max particules**. L'export reste toujours en pleine résolution.
