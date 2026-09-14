@@ -302,6 +302,13 @@ const Live = {
     syncPanels(); requestRender(); docChanged();
   },
 
+  /** Réglages du morceau tels qu'ils doivent être ENREGISTRÉS : le fond
+      d'incrustation du live (vert, bleu, noir) est un état de soirée, pas
+      un style — sans ce filtre, Ctrl+S rangeait le fond vert dans le morceau. */
+  docParams() {
+    return this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
+  },
+
   toggleBeat() {
     P.beatOn = !P.beatOn;
     syncPanels(); docChanged(); requestRender(); this.beatChanged();

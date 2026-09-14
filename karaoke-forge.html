@@ -6004,7 +6004,7 @@ function baseName() {
 function projectData() {
   return {
     kf: 2, audio: S.audioName, title: S.song.title, artist: S.song.artist, songId: S.song.id,
-    params: { ...P }, tapKey: S.tapKey,
+    params: typeof Live !== 'undefined' ? Live.docParams() : { ...P }, tapKey: S.tapKey,
     lines: cleanLines(S.lines),
     lyrics: $('#lyricsText').value, lang: $('#selLang').value
   };
@@ -6278,7 +6278,7 @@ async function saveToLibrary(forceAsk, asNew) {
       id: id || newId(),
       title: S.song.title, artist: S.song.artist,
       lines: cleanLines(S.lines), lyrics: $('#lyricsText').value, lang: $('#selLang').value,
-      params: { ...P },
+      params: Live.docParams(),
       font: custom ? (S.customFont || (prev && prev.font) || null) : null,
       audio: S.audioBlob || (S.audioRemoved ? null : (prev && prev.audio)) || null,
       audioName: S.audioBlob ? S.audioName : (S.audioRemoved ? '' : (prev && prev.audioName) || ''),
@@ -6790,6 +6790,13 @@ const Live = {
     this.keyColor = color || '';
     $$('#lvKey button').forEach(b => b.classList.toggle('on', b.dataset.key === this.keyColor));
     syncPanels(); requestRender(); docChanged();
+  },
+
+  /** Réglages du morceau tels qu'ils doivent être ENREGISTRÉS : le fond
+      d'incrustation du live (vert, bleu, noir) est un état de soirée, pas
+      un style — sans ce filtre, Ctrl+S rangeait le fond vert dans le morceau. */
+  docParams() {
+    return this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
   },
 
   toggleBeat() {

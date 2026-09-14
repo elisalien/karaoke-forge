@@ -147,7 +147,7 @@ function baseName() {
 function projectData() {
   return {
     kf: 2, audio: S.audioName, title: S.song.title, artist: S.song.artist, songId: S.song.id,
-    params: { ...P }, tapKey: S.tapKey,
+    params: typeof Live !== 'undefined' ? Live.docParams() : { ...P }, tapKey: S.tapKey,
     lines: cleanLines(S.lines),
     lyrics: $('#lyricsText').value, lang: $('#selLang').value
   };

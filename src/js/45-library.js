@@ -139,7 +139,7 @@ async function saveToLibrary(forceAsk, asNew) {
       id: id || newId(),
       title: S.song.title, artist: S.song.artist,
       lines: cleanLines(S.lines), lyrics: $('#lyricsText').value, lang: $('#selLang').value,
-      params: { ...P },
+      params: Live.docParams(),
       font: custom ? (S.customFont || (prev && prev.font) || null) : null,
       audio: S.audioBlob || (S.audioRemoved ? null : (prev && prev.audio)) || null,
       audioName: S.audioBlob ? S.audioName : (S.audioRemoved ? '' : (prev && prev.audioName) || ''),
