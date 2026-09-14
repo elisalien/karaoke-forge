@@ -77,7 +77,7 @@ function tap() {
   if (!nx) e.s.t1 = t + .6;
   S.tapIdx++;
   if (!nx) setTimeout(() => {       // dernière syllabe : on laisse le temps de relâcher, puis on sort
-    if (S.tapMode && S.tapIdx >= allSyls().length) { setTap(false); toast('Calage terminé — ajuste à l\'étape ④, puis Ctrl+S'); }
+    if (S.tapMode && S.tapIdx >= allSyls().length) { setTap(false); toast('Calage terminé — ajuste à l\'étape 4, puis Ctrl+S'); }
   }, 1500);
   selOne(...(nx ? [nx.li, nx.si] : [e.li, e.si]));
   refreshDuration();

@@ -466,9 +466,9 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
   <header id="hdr">
     <div class="logo">KARAOKE&nbsp;FORGE</div>
     <nav class="ws" id="wsNav">
-      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>PRÉPARER</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>.">① PRÉPARER</button>
-      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>STYLE</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>.">② STYLE</button>
-      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>LIVE</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>.">③ LIVE</button>
+      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>PRÉPARER</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>.">1 PRÉPARER</button>
+      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>STYLE</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>.">2 STYLE</button>
+      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>LIVE</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>.">3 LIVE</button>
     </nav>
     <div class="sep"></div>
     <button id="bPlay" title="Lecture / pause — Espace" data-help="Lecture / pause. <em>Espace</em>, toujours.">▶</button>
@@ -578,7 +578,7 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
       <section class="step" id="st5">
         <h3><span class="num"><i>5</i></span><span class="ttl">RANGER</span><span class="sum" id="sum5"></span></h3>
         <div class="in">
-          <div class="hint">Range le morceau — paroles, calage, style et audio — dans la bibliothèque du navigateur. Il sera prêt dans <b>③ LIVE</b>, même hors ligne.</div>
+          <div class="hint">Range le morceau — paroles, calage, style et audio — dans la bibliothèque du navigateur. Il sera prêt dans <b>3 LIVE</b>, même hors ligne.</div>
           <div class="rowbtn"><button id="bSaveLib" class="big hero">ENREGISTRER DANS LA BIBLIOTHÈQUE</button></div>
           <div class="rowbtn"><button id="bSaveAs">Enregistrer comme nouveau morceau…</button></div>
           <div class="hint">Pour une copie en fichier : <b>⋯ FICHIER → Exporter le projet (.kfj)</b>.</div>
@@ -594,7 +594,7 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
       <canvas id="glc"></canvas>
       <div id="stageInfo">—</div>
       <div id="stageBadge">—</div>
-      <div id="dropHint"><b>DÉPOSE UN FICHIER AUDIO</b><span>ou commence par les paroles, étape ②</span></div>
+      <div id="dropHint"><b>DÉPOSE UN FICHIER AUDIO</b><span>ou commence par les paroles, étape 2</span></div>
       <div id="tapHud">
         <div class="tprog"><i id="tapBar"></i></div>
         <div class="tcount" id="tapCount">0 / 0</div>
@@ -5651,7 +5651,7 @@ function renderSylList() {
     row.append(hd, wrap); frag.appendChild(row);
   });
   host.appendChild(frag);
-  if (!S.lines.length) host.innerHTML = '<div class="hint">Les syllabes apparaîtront ici après le découpage des paroles (étape ②).</div>';
+  if (!S.lines.length) host.innerHTML = '<div class="hint">Les syllabes apparaîtront ici après le découpage des paroles (étape 2).</div>';
   const sel = $('.syl.cur', host) || $('.syl.sel', host);
   if (sel && host.offsetParent) sel.scrollIntoView({ block: 'nearest' });
   refreshDuration();
@@ -5776,7 +5776,7 @@ function tap() {
   if (!nx) e.s.t1 = t + .6;
   S.tapIdx++;
   if (!nx) setTimeout(() => {       // dernière syllabe : on laisse le temps de relâcher, puis on sort
-    if (S.tapMode && S.tapIdx >= allSyls().length) { setTap(false); toast('Calage terminé — ajuste à l\'étape ④, puis Ctrl+S'); }
+    if (S.tapMode && S.tapIdx >= allSyls().length) { setTap(false); toast('Calage terminé — ajuste à l\'étape 4, puis Ctrl+S'); }
   }, 1500);
   selOne(...(nx ? [nx.li, nx.si] : [e.li, e.si]));
   refreshDuration();
@@ -6464,7 +6464,7 @@ const Online = {
   }
 };
 
-/** Étape ② : les paroles trouvées remplacent celles du projet. */
+/** Étape 2 : les paroles trouvées remplacent celles du projet. */
 async function useLrclibInEditor(rec) {
   const lang = $('#selLang').value;
   const d = Online.toDoc(rec, lang);
@@ -6607,7 +6607,7 @@ const Live = {
       row.onclick = e => { if (e.detail < 2) this.cue(c.id); };
       libHost.appendChild(row);
     }
-    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>① PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
+    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>1 PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
     $('#libCount').textContent = Lib.songs.length ? `(${Lib.songs.length})` : '';
   },
 
@@ -7651,13 +7651,13 @@ function helpSections() {
   const TK = tapKeyLabel();
   return [
     ['DÉMARRAGE', [['p',
-      `Trois espaces de travail, en haut à gauche : ${K('① PRÉPARER')} ${K('② STYLE')} ${K('③ LIVE')} — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
+      `Trois espaces de travail, en haut à gauche : ${K('1 PRÉPARER')} ${K('2 STYLE')} ${K('3 LIVE')} — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
     ], ['t', [
-      ['① AUDIO', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
-      ['② PAROLES', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
-      ['③ CALAGE', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
-      ['④ AJUSTER', 'Tu peaufines à la souris et au clavier'],
-      ['⑤ RANGER', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
+      ['1 AUDIO', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
+      ['2 PAROLES', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
+      ['3 CALAGE', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
+      ['4 AJUSTER', 'Tu peaufines à la souris et au clavier'],
+      ['5 RANGER', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
     ]], ['p',
       `Le panneau de gauche est le parcours : l'étape utile s'ouvre d'elle-même, un clic sur un titre y revient. ` +
       `Tout est enregistré automatiquement dans le navigateur en cas de fermeture accidentelle.`]]],
@@ -7718,10 +7718,10 @@ function helpSections() {
     ]]]],
 
     ['PAROLES ET AUDIO EN LIGNE', [['p',
-      `<b>Paroles</b> — étape ② → <em>chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
+      `<b>Paroles</b> — étape 2 → <em>chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
       `Une version <em>synchronisée</em> arrive avec le début de chaque ligne : charge l'audio puis ${K('♫ Poser sur les attaques')}. ` +
       `Vérifie que la durée de la version trouvée correspond à ton audio.<br><br>` +
-      `<b>Audio YouTube</b> — lance ${K('START-COMPANION.bat')} (dossier de l'app, Node.js requis), puis étape ① → <em>depuis YouTube</em>. ` +
+      `<b>Audio YouTube</b> — lance ${K('START-COMPANION.bat')} (dossier de l'app, Node.js requis), puis étape 1 → <em>depuis YouTube</em>. ` +
       `Le companion utilise yt-dlp et n'écoute que ta machine.`]]],
 
     ['STYLE ET RYTHME', [['p',
@@ -7883,10 +7883,10 @@ function updateStageHint() {
     span.textContent = 'dans le set à gauche — ou cherche des paroles en ligne';
   } else if (S.buffer) {
     b.textContent = 'COLLE TES PAROLES';
-    span.textContent = 'étape ② à gauche — ou cherche-les en ligne';
+    span.textContent = 'étape 2 à gauche — ou cherche-les en ligne';
   } else {
     b.textContent = 'DÉPOSE UN FICHIER AUDIO';
-    span.textContent = 'ou commence par les paroles, étape ②';
+    span.textContent = 'ou commence par les paroles, étape 2';
   }
 }
 /* ================================================================== BOOT === */

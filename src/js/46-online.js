@@ -131,7 +131,7 @@ const Online = {
   }
 };
 
-/** Étape ② : les paroles trouvées remplacent celles du projet. */
+/** Étape 2 : les paroles trouvées remplacent celles du projet. */
 async function useLrclibInEditor(rec) {
   const lang = $('#selLang').value;
   const d = Online.toDoc(rec, lang);

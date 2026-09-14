@@ -67,9 +67,9 @@ function updateStageHint() {
     span.textContent = 'dans le set à gauche — ou cherche des paroles en ligne';
   } else if (S.buffer) {
     b.textContent = 'COLLE TES PAROLES';
-    span.textContent = 'étape ② à gauche — ou cherche-les en ligne';
+    span.textContent = 'étape 2 à gauche — ou cherche-les en ligne';
   } else {
     b.textContent = 'DÉPOSE UN FICHIER AUDIO';
-    span.textContent = 'ou commence par les paroles, étape ②';
+    span.textContent = 'ou commence par les paroles, étape 2';
   }
 }

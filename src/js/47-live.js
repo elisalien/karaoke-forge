@@ -115,7 +115,7 @@ const Live = {
       row.onclick = e => { if (e.detail < 2) this.cue(c.id); };
       libHost.appendChild(row);
     }
-    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>① PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
+    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>1 PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
     $('#libCount').textContent = Lib.songs.length ? `(${Lib.songs.length})` : '';
   },
 

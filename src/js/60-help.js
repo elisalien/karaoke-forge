@@ -5,13 +5,13 @@ function helpSections() {
   const TK = tapKeyLabel();
   return [
     ['DÉMARRAGE', [['p',
-      `Trois espaces de travail, en haut à gauche : ${K('① PRÉPARER')} ${K('② STYLE')} ${K('③ LIVE')} — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
+      `Trois espaces de travail, en haut à gauche : ${K('1 PRÉPARER')} ${K('2 STYLE')} ${K('3 LIVE')} — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
     ], ['t', [
-      ['① AUDIO', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
-      ['② PAROLES', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
-      ['③ CALAGE', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
-      ['④ AJUSTER', 'Tu peaufines à la souris et au clavier'],
-      ['⑤ RANGER', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
+      ['1 AUDIO', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
+      ['2 PAROLES', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
+      ['3 CALAGE', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
+      ['4 AJUSTER', 'Tu peaufines à la souris et au clavier'],
+      ['5 RANGER', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
     ]], ['p',
       `Le panneau de gauche est le parcours : l'étape utile s'ouvre d'elle-même, un clic sur un titre y revient. ` +
       `Tout est enregistré automatiquement dans le navigateur en cas de fermeture accidentelle.`]]],
@@ -72,10 +72,10 @@ function helpSections() {
     ]]]],
 
     ['PAROLES ET AUDIO EN LIGNE', [['p',
-      `<b>Paroles</b> — étape ② → <em>chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
+      `<b>Paroles</b> — étape 2 → <em>chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
       `Une version <em>synchronisée</em> arrive avec le début de chaque ligne : charge l'audio puis ${K('♫ Poser sur les attaques')}. ` +
       `Vérifie que la durée de la version trouvée correspond à ton audio.<br><br>` +
-      `<b>Audio YouTube</b> — lance ${K('START-COMPANION.bat')} (dossier de l'app, Node.js requis), puis étape ① → <em>depuis YouTube</em>. ` +
+      `<b>Audio YouTube</b> — lance ${K('START-COMPANION.bat')} (dossier de l'app, Node.js requis), puis étape 1 → <em>depuis YouTube</em>. ` +
       `Le companion utilise yt-dlp et n'écoute que ta machine.`]]],
 
     ['STYLE ET RYTHME', [['p',

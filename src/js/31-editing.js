@@ -275,7 +275,7 @@ function renderSylList() {
     row.append(hd, wrap); frag.appendChild(row);
   });
   host.appendChild(frag);
-  if (!S.lines.length) host.innerHTML = '<div class="hint">Les syllabes apparaîtront ici après le découpage des paroles (étape ②).</div>';
+  if (!S.lines.length) host.innerHTML = '<div class="hint">Les syllabes apparaîtront ici après le découpage des paroles (étape 2).</div>';
   const sel = $('.syl.cur', host) || $('.syl.sel', host);
   if (sel && host.offsetParent) sel.scrollIntoView({ block: 'nearest' });
   refreshDuration();
