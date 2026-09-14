@@ -273,6 +273,7 @@ input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
 .lvBox[open]>summary::before{content:'▾ '}
 .lvBox>summary::-webkit-details-marker{display:none}
 .lvBox>*:not(summary){margin:8px 10px}
+.lvBox>input{width:calc(100% - 20px)}
 .lvBox .list{max-height:34vh;overflow-y:auto}
 #lvLines{overflow-y:auto;flex:1;min-height:0;gap:1px;padding-right:4px}
 #lvLines .line{display:flex;gap:10px;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:13px;color:#7d8ab8;
