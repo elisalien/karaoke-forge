@@ -8028,8 +8028,9 @@ function wire() {
   /* calage assisté, entièrement local */
   $('#bTapFrom').onclick = () => setTap(true, true);
   const tb = $('#tapBtn');
-  tb.onpointerdown = e => { e.preventDefault(); if (S.tapMode) tap(); };
-  tb.onpointerup = () => { if (S.tapMode) tapRelease(); };
+  /* capture : relâcher la souris HORS du bouton termine quand même la note tenue */
+  tb.onpointerdown = e => { e.preventDefault(); capturePointer(tb, e); if (S.tapMode) tap(); };
+  tb.onpointerup = tb.onpointercancel = () => { if (S.tapMode) tapRelease(); };
   $('#bLoop').onclick = toggleLoop;
   $('#bSnapSyl').onclick = snapSylToOnset;
   $('#bOnsetSnap').onclick = () => {
