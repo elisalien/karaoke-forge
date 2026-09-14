@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KARAOKE FORGE</title>
+<link rel="icon" href="data:,">
 <style>
 /* ============================================================
    KARAOKE FORGE — Y2K / CYBERCORE
@@ -4671,9 +4672,12 @@ const TL = {
     const stp = steps.find(s => s * S.tlZoom > 64) || 120;
     g.font = FONT(10); g.textBaseline = 'middle';
     const sub = stp / 5;
-    for (let t = Math.floor(t0 / sub) * sub; t < t1; t += sub) {
+    /* on compte en graduations entières : additionner 0,2 s à la chaîne
+       accumule des erreurs d'arrondi, et la règle affichait 00:01 deux fois */
+    for (let i = Math.floor(t0 / sub); i * sub < t1; i++) {
+      const t = Math.round(i * sub * 1000) / 1000;
       const x = Math.round(this.t2x(t)) + .5;
-      const major = Math.abs(t / stp - Math.round(t / stp)) < 1e-6;
+      const major = i % 5 === 0;
       g.strokeStyle = major ? '#2b3564' : '#171d38';
       g.beginPath(); g.moveTo(x, major ? 0 : G.ruler * .55); g.lineTo(x, major ? H : G.ruler); g.stroke();
       if (major) { g.fillStyle = '#8391c0'; g.fillText(fmtTime(t, stp < 1), x + 3 * d, G.ruler / 2); }
@@ -5016,6 +5020,8 @@ const TL = {
       }
     });
 
+    // clic molette : sous Windows, le navigateur lancerait son défilement automatique
+    c.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
     c.addEventListener('pointerdown', e => this.onDown(e));
     c.addEventListener('pointermove', e => this.onMove(e));
     c.addEventListener('pointerup', e => this.onUp(e));
