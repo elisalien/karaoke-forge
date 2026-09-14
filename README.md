@@ -90,11 +90,16 @@ tools/build.mjs     l'assemblage — aucune dépendance
 companion/          le service local facultatif
 ```
 
-Après une modification :
+`karaoke-forge.html` est **généré** : on ne le modifie jamais à la main, sinon la
+prochaine reconstruction efface le changement. Après une modification dans `src/`,
+depuis le dossier `karaoke-forge` (Node.js requis) :
 
 ```bash
 node tools/build.mjs --check
 ```
+
+La commande recolle les fichiers, vérifie que le JavaScript est valide, puis réécrit
+`karaoke-forge.html` — le fichier que `START-FORGE.bat` et `INSTALLER.bat` utilisent.
 
 `MAJ-KARAOKE-FORGE.bat` (dossier parent) reconstruit puis publie sur GitHub.
 
