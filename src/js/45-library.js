@@ -18,8 +18,9 @@ const Lib = {
         if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'k' });
       };
-      rq.onsuccess = () => { this.db = rq.result; res(this.db); };
+      rq.onsuccess = () => { this.db = rq.result; this.db.onversionchange = () => { this.db.close(); this.db = null; }; res(this.db); };
       rq.onerror = () => rej(rq.error);
+      rq.onblocked = () => rej(new Error('bibliothèque ouverte dans un autre onglet'));
     });
   },
 
@@ -69,7 +70,8 @@ const Lib = {
   },
 
   async saveSet() {
-    await this.req('meta', 'readwrite', s => s.put({ k: 'setlist', ids: this.setlist }));
+    try { await this.req('meta', 'readwrite', s => s.put({ k: 'setlist', ids: this.setlist })); }
+    catch (e) { console.warn('[set]', e); toast('Le set n\'a pas pu être enregistré : ' + (e.message || e), true); }
     this.changed();
   },
   addToSet(id) { if (!this.setlist.includes(id)) { this.setlist.push(id); this.saveSet(); } },
@@ -110,11 +112,11 @@ async function askSongInfo() {
   const g = guessSongInfo(S.audioName);
   const title = S.song.title || g.title, artist = S.song.artist || g.artist;
   const ok = await modal({
-    title: 'ENREGISTRER DANS LA BIBLIOTHÈQUE',
+    title: 'Enregistrer dans la bibliothèque',
     body: `<div class="row wide"><label>Titre</label><input type="text" id="siTitle" value="${esc(title)}"></div>
       <div class="row wide"><label>Artiste</label><input type="text" id="siArtist" value="${esc(artist)}"></div>
       <div class="hint">${S.audioBlob ? 'L\'audio est rangé avec les paroles : le morceau sera jouable hors ligne.' : 'Sans audio : le morceau se jouera en live sur l\'horloge, son externe.'}</div>`,
-    ok: 'ENREGISTRER',
+    ok: 'Enregistrer',
     validate: () => { if (!$('#siTitle').value.trim()) { $('#siTitle').focus(); return false; } return true; }
   });
   if (!ok) return false;
@@ -127,7 +129,7 @@ async function askSongInfo() {
 async function saveToLibrary(forceAsk, asNew) {
   if (Lib.saving) return false;                    // double-clic, Ctrl+S tenu
   if (!S.lines.some(L => L.syls.length)) { toast('Rien à enregistrer : pas encore de paroles', true); return false; }
-  if (!Lib.ok) { toast('Bibliothèque indisponible ici — exporte en .kfj (menu FICHIER)', true); return false; }
+  if (!Lib.ok) { toast('Bibliothèque indisponible ici — exporte en .kfj (menu Fichier)', true); return false; }
   Lib.saving = true;
   try {
     if (forceAsk || !S.song.title) { if (!(await askSongInfo())) return false; }

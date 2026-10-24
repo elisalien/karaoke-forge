@@ -35,7 +35,7 @@ function openExport() {
   const hasWC = typeof VideoEncoder !== 'undefined';
   const hasDir = typeof showDirectoryPicker === 'function';
 
-  $('#modalTitle').textContent = 'EXPORT VIDÉO';
+  $('#modalTitle').textContent = 'Exporter la vidéo';
   $('#modalBody').innerHTML = `
     <div class="row wide"><label>Format</label><select id="exFmt">
       <option value="mp4"${hasWC ? '' : ' disabled'}>MP4 · H.264 + audio (recommandé)</option>
@@ -59,7 +59,7 @@ function openExport() {
     if ($('#exFmt').value === 'png') {
       extra = hasDir ? ' · tu choisiras un dossier de destination'
         : ' · pas de sélecteur de dossier ici : les images partiront en .zip';
-      if (P.bgMode !== 'alpha') extra += ' — règle FX → FOND sur « Transparent » pour un vrai canal alpha';
+      if (P.bgMode !== 'alpha') extra += ' — règle Décor → Fond sur « Transparent » pour un vrai canal alpha';
     }
     $('#exInfo').textContent = `${S.W}×${S.H} · ${n} images · ${fmtTime(Math.max(0, b2 - a2), false)}` + extra;
   };
@@ -70,8 +70,8 @@ function openExport() {
   if (Modal.close) Modal.close();
   $('#modal').classList.add('on');
   $('#mOk').hidden = false; $('#mCancel').hidden = false;
-  $('#mCancel').textContent = 'FERMER';
-  $('#mOk').textContent = 'LANCER';
+  $('#mCancel').textContent = 'Fermer';
+  $('#mOk').textContent = 'Lancer';
   Modal.close = () => $('#mCancel').onclick();
   $('#mOk').onclick = () => {
     EX.fps = +$('#exFps').value; EX.start = +$('#exA').value; EX.end = +$('#exB').value;
@@ -89,7 +89,7 @@ function openExport() {
 let _savedRes = null;
 function beginExport() {
   S.exporting = true; EX.abort = false; EX.beat = performance.now();
-  $('#stageBadge').textContent = 'EXPORT EN COURS';
+  $('#stageBadge').textContent = 'Export en cours';
   pause();
   _savedRes = [RW, RH];
   setRenderSize(S.W, S.H);
@@ -183,7 +183,7 @@ async function exportMp4() {
       });
       withAudio = !!(s && s.supported);
     } catch (e) { withAudio = false; }
-    if (!withAudio) { console.warn('[export] encodeur AAC indisponible : la vidéo sera muette'); }
+    if (!withAudio) { console.warn('[export] encodeur AAC indisponible : la vidéo sera muette'); toast('Pas d\'encodeur audio dans ce navigateur : la vidéo sera muette', true); }
   }
 
   /* ---- 3. on bascule en mode rendu hors ligne ---- */

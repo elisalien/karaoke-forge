@@ -1,5 +1,5 @@
 /* ============================== LE PARCOURS =============================== */
-/* Quatre étapes, une seule ouverte à la fois. Quand l'état du projet change
+/* Cinq étapes, une seule ouverte à la fois. Quand l'état du projet change
    (audio chargé, paroles découpées, premier calage), la prochaine étape
    utile s'ouvre d'elle-même. Un clic sur un titre y revient.              */
 const Steps = {
@@ -48,10 +48,6 @@ const Steps = {
       const el = $('#st' + i); if (!el) continue;
       el.querySelector('h3').onclick = () => this.open(el.classList.contains('open') ? 0 : i);
     }
-    for (const t of $$('.more[data-box]')) {
-      const box = $('#' + t.dataset.box);
-      t.addEventListener('click', () => { const on = box.classList.toggle('on'); t.classList.toggle('open', on); });
-    }
   }
 };
 
@@ -63,13 +59,13 @@ function updateStageHint() {
   if (hasLyrics) return;
   const [b, span] = [h.querySelector('b'), h.querySelector('span')];
   if (S.ws === 'live') {
-    b.textContent = 'CHOISIS UN MORCEAU';
+    b.textContent = 'Choisis un morceau';
     span.textContent = 'dans le set à gauche — ou cherche des paroles en ligne';
   } else if (S.buffer) {
-    b.textContent = 'COLLE TES PAROLES';
+    b.textContent = 'Colle tes paroles';
     span.textContent = 'étape 2 à gauche — ou cherche-les en ligne';
   } else {
-    b.textContent = 'DÉPOSE UN FICHIER AUDIO';
+    b.textContent = 'Dépose un fichier audio';
     span.textContent = 'ou commence par les paroles, étape 2';
   }
 }

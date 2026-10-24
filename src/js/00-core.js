@@ -71,16 +71,16 @@ const FONTS = [
 
 const SCHEMA = {
   pgTxt: [
-    ['TYPOGRAPHIE', [
+    ['Typographie', [
       ['fontFamily', 'Police', 'sel', FONTS, FONTS[1][0]],
       ['fontWeight', 'Graisse', 'sel', [['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extrabold'], ['900', 'Black']], '900'],
       ['italic', 'Italique', 'chk', null, false],
       ['fontSize', 'Taille', 'rng', [2, 26, .1, '%H'], 9],
       ['letterSpacing', 'Interlettre', 'rng', [-.12, .5, .005, 'em'], .02],
       ['lineHeight', 'Interligne', 'rng', [.7, 3, .01, 'em'], 1.28],
-      ['uppercase', 'MAJUSCULES', 'chk', null, true]
+      ['uppercase', 'Majuscules', 'chk', null, true]
     ]],
-    ['MISE EN PAGE', [
+    ['Mise en page', [
       ['align', 'Alignement', 'sel', [['center', 'Centré'], ['left', 'Gauche'], ['right', 'Droite']], 'center'],
       ['posX', 'Position X', 'rng', [0, 100, .1, '%'], 50],
       ['posY', 'Position Y', 'rng', [0, 100, .1, '%'], 50],
@@ -88,136 +88,136 @@ const SCHEMA = {
       ['linesBefore', 'Lignes avant', 'rng', [0, 3, 1, ''], 1],
       ['linesAfter', 'Lignes après', 'rng', [0, 3, 1, ''], 1],
       ['lineLead', 'Anticipation', 'rng', [0, 3, .05, 's'], .8],
-      ['inactAlpha', 'Opacité inact.', 'rng', [0, 1, .01, ''], .3],
-      ['inactScale', 'Échelle inact.', 'rng', [.4, 1.2, .01, '×'], .82],
+      ['inactAlpha', 'Opacité inactive', 'rng', [0, 1, .01, ''], .3],
+      ['inactScale', 'Échelle inactive', 'rng', [.4, 1.2, .01, '×'], .82],
       ['actScale', 'Échelle active', 'rng', [.5, 1.6, .01, '×'], 1]
     ]],
-    ['TEXTE NON REMPLI', [
+    ['Texte avant remplissage', [
       ['baseColor', 'Couleur', 'col', null, '#2b3a6b'],
       ['baseAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .85],
       ['strokeW', 'Contour', 'rng', [0, 14, .1, 'px'], 0],
-      ['strokeColor', 'Coul. contour', 'col', null, '#31f6ff'],
+      ['strokeColor', 'Couleur du contour', 'col', null, '#31f6ff', () => P.strokeW > 0],
       ['shadowOn', 'Ombre portée', 'chk', null, false],
-      ['shadowColor', 'Coul. ombre', 'col', null, '#000000'],
-      ['shadowBlur', 'Flou ombre', 'rng', [0, 60, .5, 'px'], 14],
-      ['shadowY', 'Décalage Y', 'rng', [-40, 40, .5, 'px'], 6]
+      ['shadowColor', 'Couleur de l\'ombre', 'col', null, '#000000', () => P.shadowOn],
+      ['shadowBlur', 'Flou de l\'ombre', 'rng', [0, 60, .5, 'px'], 14, () => P.shadowOn],
+      ['shadowY', 'Décalage vertical', 'rng', [-40, 40, .5, 'px'], 6, () => P.shadowOn]
     ]]
   ],
 
   pgFill: [
-    ['REMPLISSAGE', [
-      ['fillMode', 'Mode', 'sel', [['solid', 'Uni'], ['linear', 'Dégradé 2'], ['tri', 'Dégradé 3'], ['chrome', 'Chrome Y2K'], ['holo', 'Holographique'], ['hue', 'Hue cyclique']], 'chrome'],
+    ['Remplissage', [
+      ['fillMode', 'Mode', 'sel', [['solid', 'Uni'], ['linear', 'Dégradé 2'], ['tri', 'Dégradé 3'], ['chrome', 'Chrome Y2K'], ['holo', 'Holographique'], ['hue', 'Teinte tournante']], 'chrome'],
       ['fillC1', 'Couleur 1', 'col', null, '#ffffff'],
-      ['fillC2', 'Couleur 2', 'col', null, '#31f6ff'],
-      ['fillC3', 'Couleur 3', 'col', null, '#ff2fd0'],
-      ['fillAngle', 'Angle', 'rng', [0, 360, 1, '°'], 90],
-      ['fillScale', 'Échelle', 'rng', [.1, 4, .01, '×'], 1],
-      ['fillSpeed', 'Animation', 'rng', [-3, 3, .01, ''], .35]
+      ['fillC2', 'Couleur 2', 'col', null, '#31f6ff', () => P.fillMode !== 'solid'],
+      ['fillC3', 'Couleur 3', 'col', null, '#ff2fd0', () => ['tri', 'chrome', 'holo'].includes(P.fillMode)],
+      ['fillAngle', 'Angle', 'rng', [0, 360, 1, '°'], 90, () => P.fillMode !== 'solid'],
+      ['fillScale', 'Échelle', 'rng', [.1, 4, .01, '×'], 1, () => P.fillMode !== 'solid'],
+      ['fillSpeed', 'Animation', 'rng', [-3, 3, .01, ''], .35, () => P.fillMode !== 'solid']
     ]],
-    ['PROGRESSION', [
-      ['fillEase', 'Courbe', 'sel', [['linear', 'Linéaire'], ['out', 'Ease out'], ['in', 'Ease in'], ['inout', 'Ease in-out'], ['step', 'Instantané']], 'linear'],
+    ['Progression', [
+      ['fillEase', 'Courbe', 'sel', [['linear', 'Linéaire'], ['out', 'Décélérée'], ['in', 'Accélérée'], ['inout', 'Douce aux deux bouts'], ['step', 'Instantané']], 'linear'],
       ['fillLead', 'Avance', 'rng', [-300, 300, 1, 'ms'], 0],
       ['fillSoft', 'Bord doux', 'rng', [0, 80, .5, 'px'], 10]
     ]],
-    ['ACCENT SYLLABE', [
-      ['popAmt', 'Pop échelle', 'rng', [0, .6, .005, ''], .06],
-      ['popDur', 'Pop durée', 'rng', [40, 800, 5, 'ms'], 180],
-      ['glowAmt', 'Glow texte', 'rng', [0, 3, .01, ''], 1.1],
-      ['glowColor', 'Coul. glow', 'col', null, '#31f6ff'],
+    ['Accent de syllabe', [
+      ['popAmt', 'Grossissement', 'rng', [0, .6, .005, ''], .06],
+      ['popDur', 'Durée du grossissement', 'rng', [40, 800, 5, 'ms'], 180, () => P.popAmt > 0],
+      ['glowAmt', 'Halo du texte', 'rng', [0, 3, .01, ''], 1.1],
+      ['glowColor', 'Couleur du halo', 'col', null, '#31f6ff', () => P.glowAmt > 0],
       ['fillStroke', 'Contour rempli', 'chk', null, true],
-      ['fillStrokeC', 'Coul.', 'col', null, '#ff2fd0'],
-      ['fillStrokeW', 'Épaisseur', 'rng', [0, 14, .1, 'px'], 2.5]
+      ['fillStrokeC', 'Couleur du contour', 'col', null, '#ff2fd0', () => P.fillStroke],
+      ['fillStrokeW', 'Épaisseur du contour', 'rng', [0, 14, .1, 'px'], 2.5, () => P.fillStroke]
     ]]
   ],
 
   pgPar: [
-    ['ÉMETTEUR', [
+    ['Émetteur', [
       ['parOn', 'Activer', 'chk', null, true],
-      ['parType', 'Type', 'sel', [['spark', 'Étincelles'], ['dust', 'Poussière'], ['pixel', 'Pixels Y2K'], ['bubble', 'Bulles Aero'], ['shard', 'Éclats'], ['star', 'Étoiles'], ['streak', 'Traînées'], ['petal', 'Pétales'], ['note', 'Notes ♪'], ['confetti', 'Confettis'], ['heart', 'Cœurs']], 'spark'],
-      ['parRate', 'Débit', 'rng', [0, 4000, 5, '/s'], 700],
-      ['parBurst', 'Burst syllabe', 'rng', [0, 400, 1, ''], 26],
-      ['parBand', 'Bande d\'émission', 'rng', [1, 160, .5, 'px'], 22],
-      ['parEmitFull', 'Toute la surface', 'chk', null, false],
-      ['parMax', 'Max particules', 'rng', [200, 40000, 100, ''], 9000]
+      ['parType', 'Type', 'sel', [['spark', 'Étincelles'], ['dust', 'Poussière'], ['pixel', 'Pixels Y2K'], ['bubble', 'Bulles Aero'], ['shard', 'Éclats'], ['star', 'Étoiles'], ['streak', 'Traînées'], ['petal', 'Pétales'], ['note', 'Notes ♪'], ['confetti', 'Confettis'], ['heart', 'Cœurs']], 'spark', () => P.parOn],
+      ['parRate', 'Débit', 'rng', [0, 4000, 5, '/s'], 700, () => P.parOn],
+      ['parBurst', 'Bouffée par syllabe', 'rng', [0, 400, 1, ''], 26, () => P.parOn],
+      ['parBand', 'Bande d\'émission', 'rng', [1, 160, .5, 'px'], 22, () => P.parOn],
+      ['parEmitFull', 'Toute la surface', 'chk', null, false, () => P.parOn],
+      ['parMax', 'Max particules', 'rng', [200, 40000, 100, ''], 9000, () => P.parOn]
     ]],
-    ['PHYSIQUE', [
-      ['parSpeed', 'Vitesse', 'rng', [0, 2200, 5, 'px/s'], 340],
-      ['parSpeedRnd', 'Aléa vitesse', 'rng', [0, 1, .01, ''], .65],
-      ['parDir', 'Direction', 'rng', [-180, 180, 1, '°'], -90],
-      ['parSpread', 'Dispersion', 'rng', [0, 360, 1, '°'], 150],
-      ['parGravity', 'Gravité', 'rng', [-3000, 3000, 5, ''], -180],
-      ['parDrag', 'Friction', 'rng', [0, 8, .01, ''], 1.6],
-      ['parTurb', 'Turbulence', 'rng', [0, 2000, 5, ''], 220],
-      ['parTurbScale', 'Éch. turbul.', 'rng', [.2, 12, .05, ''], 2.4]
+    ['Physique', [
+      ['parSpeed', 'Vitesse', 'rng', [0, 2200, 5, 'px/s'], 340, () => P.parOn],
+      ['parSpeedRnd', 'Aléa vitesse', 'rng', [0, 1, .01, ''], .65, () => P.parOn],
+      ['parDir', 'Direction', 'rng', [-180, 180, 1, '°'], -90, () => P.parOn],
+      ['parSpread', 'Dispersion', 'rng', [0, 360, 1, '°'], 150, () => P.parOn],
+      ['parGravity', 'Gravité', 'rng', [-3000, 3000, 5, ''], -180, () => P.parOn],
+      ['parDrag', 'Friction', 'rng', [0, 8, .01, ''], 1.6, () => P.parOn],
+      ['parTurb', 'Turbulence', 'rng', [0, 2000, 5, ''], 220, () => P.parOn],
+      ['parTurbScale', 'Échelle turbulence', 'rng', [.2, 12, .05, ''], 2.4, () => P.parOn]
     ]],
-    ['ASPECT', [
-      ['parSize', 'Taille', 'rng', [.5, 80, .1, 'px'], 5],
-      ['parSizeRnd', 'Aléa taille', 'rng', [0, 1, .01, ''], .6],
-      ['parGrow', 'Croissance', 'rng', [-1, 3, .01, ''], -.75],
-      ['parLife', 'Durée de vie', 'rng', [.05, 8, .01, 's'], 1.1],
-      ['parLifeRnd', 'Aléa durée', 'rng', [0, 1, .01, ''], .5],
-      ['parSpin', 'Rotation', 'rng', [0, 25, .05, ''], 4],
-      ['parStretch', 'Étirement', 'rng', [0, 6, .01, ''], 1.2],
-      ['parColorMode', 'Couleur', 'sel', [['fill', 'Hérite du fill'], ['c1', 'Uni'], ['grad', 'Dégradé 1→2'], ['rand', 'Aléatoire 1/2']], 'fill'],
-      ['parC1', 'Couleur 1', 'col', null, '#ffffff'],
-      ['parC2', 'Couleur 2', 'col', null, '#ff2fd0'],
-      ['parAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .9],
-      ['parFadeIn', 'Fondu entrée', 'rng', [0, .6, .005, 's'], .04],
-      ['parBlend', 'Fusion', 'sel', [['add', 'Additif'], ['normal', 'Normal']], 'add'],
-      ['parSeed', 'Graine', 'rng', [1, 9999, 1, ''], 1337]
+    ['Aspect', [
+      ['parSize', 'Taille', 'rng', [.5, 80, .1, 'px'], 5, () => P.parOn],
+      ['parSizeRnd', 'Aléa taille', 'rng', [0, 1, .01, ''], .6, () => P.parOn],
+      ['parGrow', 'Croissance', 'rng', [-1, 3, .01, ''], -.75, () => P.parOn],
+      ['parLife', 'Durée de vie', 'rng', [.05, 8, .01, 's'], 1.1, () => P.parOn],
+      ['parLifeRnd', 'Aléa durée', 'rng', [0, 1, .01, ''], .5, () => P.parOn],
+      ['parSpin', 'Rotation', 'rng', [0, 25, .05, ''], 4, () => P.parOn],
+      ['parStretch', 'Étirement', 'rng', [0, 6, .01, ''], 1.2, () => P.parOn],
+      ['parColorMode', 'Couleur', 'sel', [['fill', 'Couleur du remplissage'], ['c1', 'Uni'], ['grad', 'Dégradé 1→2'], ['rand', 'Aléatoire 1/2']], 'fill', () => P.parOn],
+      ['parC1', 'Couleur 1', 'col', null, '#ffffff', () => P.parOn && P.parColorMode !== 'fill'],
+      ['parC2', 'Couleur 2', 'col', null, '#ff2fd0', () => P.parOn && (P.parColorMode === 'grad' || P.parColorMode === 'rand')],
+      ['parAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .9, () => P.parOn],
+      ['parFadeIn', 'Fondu entrée', 'rng', [0, .6, .005, 's'], .04, () => P.parOn],
+      ['parBlend', 'Fusion', 'sel', [['add', 'Additif'], ['normal', 'Normal']], 'add', () => P.parOn],
+      ['parSeed', 'Graine', 'rng', [1, 9999, 1, ''], 1337, () => P.parOn]
     ]]
   ],
 
   pgFx: [
-    ['FOND', [
+    ['Fond', [
       ['bgMode', 'Type', 'sel', [['solid', 'Uni'], ['grad', 'Dégradé'], ['alpha', 'Transparent (alpha)']], 'grad'],
-      ['bgC1', 'Couleur 1', 'col', null, '#05030f'],
-      ['bgC2', 'Couleur 2', 'col', null, '#1b0430'],
-      ['bgAngle', 'Angle', 'rng', [0, 360, 1, '°'], 160],
+      ['bgC1', 'Couleur 1', 'col', null, '#05030f', () => P.bgMode !== 'alpha'],
+      ['bgC2', 'Couleur 2', 'col', null, '#1b0430', () => P.bgMode === 'grad'],
+      ['bgAngle', 'Angle', 'rng', [0, 360, 1, '°'], 160, () => P.bgMode === 'grad'],
       ['gridOn', 'Grille rétro', 'chk', null, true],
-      ['gridColor', 'Coul. grille', 'col', null, '#ff2fd0'],
-      ['gridAlpha', 'Opacité grille', 'rng', [0, 1, .01, ''], .22],
-      ['gridSize', 'Densité', 'rng', [2, 60, .5, ''], 16],
-      ['gridSpeed', 'Défilement', 'rng', [-3, 3, .01, ''], .35],
-      ['gridHorizon', 'Horizon', 'rng', [.2, 1, .005, ''], .62]
+      ['gridColor', 'Couleur de la grille', 'col', null, '#ff2fd0', () => P.gridOn],
+      ['gridAlpha', 'Opacité grille', 'rng', [0, 1, .01, ''], .22, () => P.gridOn],
+      ['gridSize', 'Densité', 'rng', [2, 60, .5, ''], 16, () => P.gridOn],
+      ['gridSpeed', 'Défilement', 'rng', [-3, 3, .01, ''], .35, () => P.gridOn],
+      ['gridHorizon', 'Horizon', 'rng', [.2, 1, .005, ''], .62, () => P.gridOn]
     ]],
-    ['BLOOM', [
+    ['Bloom', [
       ['bloomOn', 'Activer', 'chk', null, true],
-      ['bloomThr', 'Seuil', 'rng', [0, 1.2, .01, ''], .45],
-      ['bloomInt', 'Intensité', 'rng', [0, 3, .01, ''], .95],
-      ['bloomRad', 'Rayon', 'rng', [.4, 5, .05, ''], 1.6]
+      ['bloomThr', 'Seuil', 'rng', [0, 1.2, .01, ''], .45, () => P.bloomOn],
+      ['bloomInt', 'Intensité', 'rng', [0, 3, .01, ''], .95, () => P.bloomOn],
+      ['bloomRad', 'Rayon', 'rng', [.4, 5, .05, ''], 1.6, () => P.bloomOn]
     ]],
-    ['POST — CYBERCORE', [
+    ['Post-traitement', [
       ['chroma', 'Aberration', 'rng', [0, 30, .1, 'px'], 3.2],
-      ['chromaWarp', 'Aberr. radiale', 'rng', [0, 1, .01, ''], .7],
-      ['scanAmt', 'Scanlines', 'rng', [0, 1, .01, ''], .16],
-      ['scanCount', 'Lignes', 'rng', [80, 2000, 10, ''], 900],
-      ['scanRoll', 'Roll', 'rng', [-2, 2, .01, ''], .12],
+      ['chromaWarp', 'Aberration radiale', 'rng', [0, 1, .01, ''], .7, () => P.chroma > 0],
+      ['scanAmt', 'Lignes de balayage', 'rng', [0, 1, .01, ''], .16],
+      ['scanCount', 'Nombre de lignes', 'rng', [80, 2000, 10, ''], 900, () => P.scanAmt > 0],
+      ['scanRoll', 'Défilement des lignes', 'rng', [-2, 2, .01, ''], .12, () => P.scanAmt > 0],
       ['grain', 'Grain', 'rng', [0, .7, .005, ''], .06],
       ['vign', 'Vignette', 'rng', [0, 2, .01, ''], .5],
       ['contrast', 'Contraste', 'rng', [.4, 2.2, .01, '×'], 1.06],
       ['sat', 'Saturation', 'rng', [0, 2.2, .01, '×'], 1.1],
       ['glitchAmt', 'Glitch', 'rng', [0, 1, .01, ''], 0],
-      ['glitchRate', 'Fréq. glitch', 'rng', [.1, 12, .1, 'Hz'], 2.4]
+      ['glitchRate', 'Fréquence du glitch', 'rng', [.1, 12, .1, 'Hz'], 2.4, () => P.glitchAmt > 0]
     ]],
-    ['RENDU', [
+    ['Rendu', [
       ['resPreset', 'Résolution', 'sel', [['1920x1080', '1920×1080 · 16:9'], ['1080x1920', '1080×1920 · 9:16'], ['1080x1080', '1080×1080 · 1:1'], ['1280x720', '1280×720 · HD'], ['2560x1440', '2560×1440 · QHD'], ['3840x2160', '3840×2160 · 4K']], '1920x1080'],
       ['previewScale', 'Qualité aperçu', 'sel', [['0.5', '50 % (rapide)'], ['0.75', '75 %'], ['1', '100 % (exact)']], '0.75']
     ]]
   ],
 
   pgBeat: [
-    ['TEMPO', [
+    ['Tempo', [
       ['beatOn', 'Réagir au rythme', 'chk', null, false],
       ['bpm', 'BPM', 'rng', [40, 240, .1, ''], 120],
       ['beatOffset', 'Calage du temps', 'rng', [-1500, 1500, 1, 'ms'], 0]
     ]],
-    ['RÉACTIONS', [
-      ['beatScale', 'Pulsation texte', 'rng', [0, .3, .005, ''], .05],
-      ['beatGlow', 'Éclat du glow', 'rng', [0, 3, .01, ''], .8],
-      ['beatBloom', 'Éclat du bloom', 'rng', [0, 2, .01, ''], .5],
-      ['beatBurst', 'Rafale particules', 'rng', [0, 400, 1, ''], 0],
-      ['beatDecay', 'Sécheresse', 'rng', [1, 14, .1, ''], 5]
+    ['Réactions au temps', [
+      ['beatScale', 'Pulsation texte', 'rng', [0, .3, .005, ''], .05, () => P.beatOn],
+      ['beatGlow', 'Éclat du halo', 'rng', [0, 3, .01, ''], .8, () => P.beatOn],
+      ['beatBloom', 'Éclat du bloom', 'rng', [0, 2, .01, ''], .5, () => P.beatOn],
+      ['beatBurst', 'Rafale particules', 'rng', [0, 400, 1, ''], 0, () => P.beatOn],
+      ['beatDecay', 'Sécheresse', 'rng', [1, 14, .1, ''], 5, () => P.beatOn]
     ]]
   ]
 };
@@ -227,9 +227,9 @@ const SCHEMA = {
   for (const page in SCHEMA)
     for (const [, items] of SCHEMA[page])
       for (const it of items) {
-        const [k, label, type, opt, def] = it;
+        const [k, label, type, opt, def, when] = it;
         P[k] = def;
-        PMETA[k] = { label, type, opt, def, page };
+        PMETA[k] = { label, type, opt, def, page, when };
       }
 })();
 
@@ -851,17 +851,42 @@ function sortLines() {
 function buildPanels() {
   const simple = S.uiMode === 'simple';
   for (const page in SCHEMA) {
-    const host = $('#' + page); host.innerHTML = '';
+    const host = $('#' + page); if (!host) continue;
+    host.innerHTML = '';
     for (const [title, items] of SCHEMA[page]) {
       const keep = items.filter(it => !simple || SIMPLE.has(it[0]));
-      if (!keep.length) continue;                       // groupe vide : on l'omet
+      if (!keep.length && !(page === 'pgBeat' && title === 'Tempo')) continue;   // groupe vide : on l'omet
       const g = document.createElement('div'); g.className = 'grp';
       const h = document.createElement('h3'); h.textContent = title;
       h.onclick = () => g.classList.toggle('fold');
       const inn = document.createElement('div'); inn.className = 'grpin';
-      for (const [k, label, type, opt] of keep) inn.appendChild(makeControl(k, label, type, opt));
+      if (page === 'pgBeat' && title === 'Tempo') {
+        // les outils de tempo (tap, détection, Link) vivent dans ce groupe, une seule fois
+        const bt = document.createElement('div'); bt.id = 'beatTools'; inn.appendChild(bt);
+        if (typeof mountBeatTools === 'function') mountBeatTools(bt);
+      }
+      for (const [k, label, type, opt] of keep) { const row = makeControl(k, label, type, opt); PMETA[k].row = row; inn.appendChild(row); }
       g.appendChild(h); g.appendChild(inn); host.appendChild(g);
     }
+  }
+  refreshVisibility();
+}
+
+/** Les réglages qui n'ont pas de sens dans l'état courant se cachent
+    (couleur 2 d'un fond uni, flou d'une ombre désactivée…). */
+function refreshVisibility() {
+  const groups = new Set();
+  for (const k in PMETA) {
+    const m = PMETA[k]; if (!m.row) continue;
+    const hide = m.when ? !m.when() : false;
+    if (m.row.hidden !== hide) m.row.hidden = hide;
+    groups.add(m.row.parentElement);
+  }
+  for (const inn of groups) {
+    if (!inn) continue;
+    const g = inn.parentElement;
+    const visible = [...inn.children].some(el => !el.hidden);
+    if (g && g.classList.contains('grp')) g.hidden = !visible;
   }
 }
 
@@ -869,8 +894,11 @@ function setUiMode(m) {
   S.uiMode = m;
   $('#mSimple').classList.toggle('on', m === 'simple');
   $('#mExpert').classList.toggle('on', m === 'expert');
-  for (const k in PMETA) PMETA[k].el = null;
+  document.body.classList.toggle('ui-expert', m === 'expert');
+  for (const k in PMETA) { PMETA[k].el = null; PMETA[k].row = null; }
   buildPanels();
+  if (typeof UiPrefs !== 'undefined') UiPrefs.set({ mode: m });
+  if (typeof Live !== 'undefined' && Live.beatChanged) Live.beatChanged();
 }
 
 function applyPreset(name) {
@@ -948,6 +976,7 @@ function setParam(k, val) {
   if (k === 'resPreset' || k === 'previewScale') resizeStage();
   if (k === 'parMax') Particles.resize(P.parMax);
   if (k === 'parSeed') Particles.reset();
+  refreshVisibility();
   requestRender();
   Doc.touch(); docChanged();
 }
@@ -959,4 +988,5 @@ function syncPanels() {
     else m.el.value = P[k];
     if (m.show) m.show();
   }
+  refreshVisibility();
 }

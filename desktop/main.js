@@ -108,10 +108,9 @@ function runSelfTest(win) {
   const wc = win.webContents;
   const lines = [];
   let errors = 0;
-  wc.on('console-message', ev => {
-    const level = typeof ev === 'object' && ev.level !== undefined ? ev.level : arguments[1];
-    const msg = typeof ev === 'object' && ev.message !== undefined ? ev.message : arguments[2];
-    const isErr = level === 'error' || level === 3;
+  wc.on('console-message', ev => {               // Electron ≥ 32 : un objet { level, message }
+    const level = ev.level, msg = ev.message;
+    const isErr = level === 'error';
     if (isErr) errors++;
     lines.push((isErr ? '[ERREUR] ' : '') + msg);
     process.stdout.write((isErr ? '  ! ' : '    ') + msg + '\n');
@@ -159,7 +158,7 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(true));
   Menu.setApplicationMenu(null);          // les raccourcis (Ctrl+Z…) appartiennent à l'app, pas à un menu
 
-  if (!SELFTEST) startCompanion();
+  startCompanion();                       // aussi pendant l'autotest : il vérifie que le companion répond
   main = createMain();
   if (SELFTEST) runSelfTest(main);
 

@@ -26,7 +26,7 @@ const Beat = {
   src: 'song',                // song | tap | link
   bpm: 120, anchorEpoch: 0, anchorBeat: 0,
   taps: [],
-  link: { want: false, es: null, companion: false, connected: false, peers: 0, retry: 0 },
+  link: { want: false, es: null, companion: false, connected: false, peers: 0, retry: 0, wait: 2000 },
 
   get live() { return this.src !== 'song' && !S.exporting; },
   liveBeat() { return this.anchorBeat + (epochNow() - this.anchorEpoch) / 60000 * this.bpm; },
@@ -122,9 +122,9 @@ const Beat = {
     if (L.es) return;
     let es;
     try { es = new EventSource(COMPANION + '/link'); }
-    catch (e) { L.retry = setTimeout(() => this.connectLink(L.want), 4000); return; }
+    catch (e) { L.retry = setTimeout(() => this.connectLink(L.want), L.wait); L.wait = Math.min(30000, L.wait * 2); return; }
     L.es = es;
-    es.onopen = () => { L.companion = true; this.changed(); };
+    es.onopen = () => { L.companion = true; L.wait = 2000; this.changed(); };
     es.onmessage = ev => {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       L.companion = true;
@@ -143,7 +143,8 @@ const Beat = {
       es.close(); if (L.es === es) L.es = null;
       L.companion = false; L.connected = false;
       this.changed();
-      if (L.want) L.retry = setTimeout(() => this.connectLink(L.want), 4000);
+      // sans companion, on réessaie de moins en moins souvent (2 s → 30 s) : la console reste lisible
+      if (L.want) { L.retry = setTimeout(() => this.connectLink(L.want), L.wait); L.wait = Math.min(30000, L.wait * 2); }
     };
   },
 

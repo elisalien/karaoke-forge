@@ -141,7 +141,7 @@ function clearHold() {
 }
 function setPlaying(on) {
   S.playing = on;
-  $('#bPlay').textContent = on ? '❚❚' : '▶';
+  $('#bPlay').innerHTML = icon(on ? 'pause' : 'play');
   document.body.classList.toggle('playing', on);
   if (typeof Live !== 'undefined') Live.transportChanged();
   Scene.sendClock();

@@ -74,9 +74,9 @@ const Scene = {
   updateUi() {
     const el = $('#sceneState'); if (!el) return;
     const on = this.isOpen();
-    el.textContent = on ? '● écran scène connecté' : '○ écran scène fermé';
+    el.textContent = on ? 'Écran scène connecté' : 'Écran scène fermé';
     el.classList.toggle('on', on);
-    const b = $('#lvScene'); if (b) b.textContent = on ? 'MONTRER L\'ÉCRAN SCÈNE' : 'OUVRIR L\'ÉCRAN SCÈNE ↗';
+    const b = $('#lvScene'); if (b) b.innerHTML = icon('scene') + (on ? 'Montrer l\'écran scène' : 'Ouvrir l\'écran scène');
     $('#stageWrap').classList.toggle('paused', this.previewPaused());
   },
 

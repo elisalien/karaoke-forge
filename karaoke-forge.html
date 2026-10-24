@@ -7,445 +7,412 @@
 <title>Karaoke Forge</title>
 <link rel="icon" href="data:,">
 <style>
-/* ============================================================
-   KARAOKE FORGE — Y2K / CYBERCORE
-   Lisibilité d'abord : textes à 11 px minimum, contrastes relevés.
-   ============================================================ */
+/* ============================================================================
+   KARAOKE FORGE — interface « studio sombre »
+   ----------------------------------------------------------------------------
+   Une coque calme pour une salle sombre : anthracite neutre, un seul accent
+   (cyan) réservé à ce qui est actif ou en cours, l'ambre pour « attention »,
+   le rouge pour ce qui détruit. Pas de halo, pas de dégradé décoratif : la
+   seule lumière de l'écran, c'est l'aperçu du karaoké.
+   Texte à 11 px minimum. Tout se pilote au clavier : focus visible partout.
+   ============================================================================ */
 :root{
-  --bg:#05060c; --panel:#0d1020; --panel2:#12162a;
-  --line:#1e2542; --line2:#2b3564;
-  --txt:#d3dcff; --dim:#8a97c6; --faint:#6b78a6;
-  --cy:#31f6ff; --mg:#ff2fd0; --lm:#a6ff2f; --am:#ffb02f;
-  --chrome:linear-gradient(180deg,#f4f7ff 0%,#a8b6d8 42%,#4c5a80 52%,#c6d2f0 78%,#7e8db4 100%);
-  --hdr:linear-gradient(180deg,#1a2140 0%,#0d1224 100%);
-  --mono:'SF Mono',ui-monospace,'JetBrains Mono','Cascadia Mono',Consolas,'Courier New',monospace;
+  --bg:#15171a; --panel:#1c1f24; --panel2:#22262c; --inset:#111317;
+  --line:#2c3139; --line2:#394049;
+  --txt:#e6e8eb; --dim:#9aa3ad; --faint:#6a737d;
+  --acc:#3fb8d8; --acc-dk:#2a8aa5; --acc-tint:rgba(63,184,216,.14); --acc-tint2:rgba(63,184,216,.26);
+  --warn:#e0a537; --dgr:#e05a5a; --dgr-tint:rgba(224,90,90,.14);
+  --ok:#5fc08a;
+  --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --r:6px; --r-sm:4px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px;
+  --hdr-h:44px; --ctl-h:28px;
+  --shadow:0 12px 32px rgba(0,0,0,.45);
+  --t:.12s;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
 html,body{height:100%}
-body{
-  background:
-    radial-gradient(1200px 700px at 70% -10%, rgba(255,47,208,.13), transparent 60%),
-    radial-gradient(900px 600px at 10% 110%, rgba(49,246,255,.11), transparent 60%),
-    var(--bg);
-  color:var(--txt);font:12.5px/1.5 var(--mono);overflow:hidden;user-select:none;
-}
-/* Trame CRT sur l'interface seulement : l'aperçu doit montrer exactement le rendu. */
-.pane:not(#stage),#hdr{position:relative}
-.pane:not(#stage)::after,#hdr::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:50;
-  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);
-  mix-blend-mode:multiply;opacity:.25}
-body.dragging #app{outline:2px dashed var(--cy);outline-offset:-4px}
+body{background:var(--bg);color:var(--txt);font:13px/1.45 var(--sans);overflow:hidden;user-select:none}
+body.dragging #app{outline:2px dashed var(--acc);outline-offset:-4px}
 [hidden]{display:none!important}
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-track{background:#080a14}
-::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#33406e,#1b2242);border:1px solid #0b0e1a}
-::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4d5c96,#26305c)}
-:focus-visible{outline:2px solid var(--cy);outline-offset:1px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border:3px solid var(--panel);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px;border-radius:var(--r-sm)}
+a{color:var(--acc)}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;vertical-align:-3px}
+.center{text-align:center}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* ---------------- espaces de travail ---------------- */
 #app{display:grid;height:100vh;gap:1px;background:var(--line);
   grid-template-columns:minmax(300px,350px) 1fr;
-  grid-template-rows:46px minmax(0,1fr) minmax(170px,27vh);
+  grid-template-rows:var(--hdr-h) minmax(0,1fr) minmax(170px,27vh);
   grid-template-areas:"hdr hdr" "left stage" "tl tl"}
 #hdr{grid-area:hdr}#left{grid-area:left}#stage{grid-area:stage}#right{grid-area:right}#tl{grid-area:tl}
 #liveLeft{grid-area:lset}#liveRight{grid-area:lctl}#liveLines{grid-area:lines}
 #right,#liveLeft,#liveRight,#liveLines{display:none}
 
 body.ws-style #app{grid-template-columns:1fr minmax(330px,390px);
-  grid-template-rows:46px minmax(0,1fr) minmax(150px,21vh);
+  grid-template-rows:var(--hdr-h) minmax(0,1fr) minmax(150px,21vh);
   grid-template-areas:"hdr hdr" "stage right" "tl tl"}
-body.ws-style #left{display:none}
+body.ws-style #left,body.ws-style #speed{display:none}
 body.ws-style #right{display:flex}
+/* en Style, la timeline sert à se repérer, pas à éditer */
+body.ws-style #tlHd .tools,body.ws-style #ckSnap,body.ws-style #ckRipple,body.ws-style #bLoop,body.ws-style #bSnapSyl,body.ws-style #tlSel{display:none}
 
 body.ws-live #app{grid-template-columns:minmax(280px,340px) 1fr minmax(300px,360px);
-  grid-template-rows:46px minmax(0,1fr) minmax(150px,28vh);
+  grid-template-rows:var(--hdr-h) minmax(0,1fr) minmax(150px,28vh);
   grid-template-areas:"hdr hdr hdr" "lset stage lctl" "lset lines lctl"}
-body.ws-live #left,body.ws-live #tl,body.ws-live #speed,body.ws-live #bExport{display:none}
+/* en Live, rien ne peut modifier un morceau par mégarde */
+body.ws-live #left,body.ws-live #tl,body.ws-live #speed,body.ws-live #bExport,body.ws-live #bSave,body.ws-live #bProj,
+body.ws-live #undoBar,body.ws-live #hdr .deck,body.ws-live #hdr .deck+.sep{display:none}
 body.ws-live #liveLeft,body.ws-live #liveRight,body.ws-live #liveLines{display:flex}
 
 .pane{background:var(--panel);overflow:hidden;display:flex;flex-direction:column;min-height:0;min-width:0}
-.pane>.body{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;padding:10px 11px 26px}
+.pane>.body{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;padding:var(--s3) var(--s3) 28px}
 
 /* ---------------- en-tête ---------------- */
-#hdr{background:var(--hdr);display:flex;align-items:center;gap:8px;padding:0 12px;
-  border-bottom:1px solid var(--line2);position:relative;min-width:0}
-#hdr::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
-  background:linear-gradient(90deg,var(--mg),var(--cy),var(--mg));opacity:.55}
-.logo{font-weight:800;letter-spacing:.16em;font-size:13px;white-space:nowrap;
-  background:linear-gradient(180deg,#fff,#9fe9ff 45%,#31f6ff 55%,#5b7bff);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  text-shadow:0 0 18px rgba(49,246,255,.35)}
-.sep{width:1px;height:24px;background:var(--line2);flex:0 0 auto}
+#hdr{background:var(--panel);display:flex;align-items:center;gap:var(--s2);padding:0 var(--s3);min-width:0}
+.logo{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;color:var(--txt);margin-right:var(--s1)}
+.logo svg.ic{width:18px;height:18px;color:var(--acc);stroke-width:0;fill:currentColor}
+.sep{width:1px;height:22px;background:var(--line2);flex:0 0 auto}
 .spacer{flex:1;min-width:4px}
-.ws{display:flex;gap:2px;background:#080b16;border:1px solid var(--line2);border-radius:4px;padding:2px}
-.ws button{border:0;background:transparent;box-shadow:none;padding:6px 11px;font-size:11px;letter-spacing:.1em;color:var(--dim)}
-.ws button:hover{color:#fff;background:rgba(49,246,255,.07)}
-.ws button.on{color:#fff;background:linear-gradient(180deg,#2a1140,#170a26);box-shadow:inset 0 -2px 0 var(--mg),0 0 12px rgba(255,47,208,.25)}
-#saveState{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26vw}
-#saveState.dirty{color:var(--am)}
+.ws{display:flex;gap:2px;background:var(--inset);border:1px solid var(--line);border-radius:var(--r);padding:2px}
+.ws button{border:0;background:transparent;padding:4px 12px 4px 8px;font-size:13px;font-weight:600;color:var(--dim);display:flex;align-items:center;gap:7px;height:var(--ctl-h)}
+.ws button b{font:600 11px/1 var(--mono);color:var(--faint);width:16px;height:16px;border-radius:4px;background:var(--panel2);display:grid;place-items:center}
+.ws button:hover{color:var(--txt)}
+.ws button.on{color:var(--txt);background:var(--panel2)}
+.ws button.on b{background:var(--acc);color:#0b1d23}
+.deck{display:flex;align-items:center;gap:var(--s1)}
+#saveState{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26vw;padding:0 var(--s1)}
+#saveState.dirty{color:var(--warn)}
+#saveState.busy{color:var(--acc)}
+#saveState.busy::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid var(--acc);border-right-color:transparent;margin-right:7px;animation:spin .8s linear infinite;vertical-align:-1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.undo{display:flex;gap:2px}
 
+/* ---------------- contrôles ---------------- */
 button,select,input[type=text],input[type=number],input[type=search]{
-  font:inherit;color:var(--txt);background:linear-gradient(180deg,#1a2142,#10152a);
-  border:1px solid var(--line2);border-radius:3px;padding:5px 9px;cursor:pointer;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07);outline:none;transition:.12s}
-button{font-size:11.5px;white-space:nowrap}
-button:hover,select:hover{border-color:#4e5ea0;color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 0 12px rgba(49,246,255,.18)}
-button:active{transform:translateY(1px)}
-button.on{background:linear-gradient(180deg,#2a1140,#170a26);border-color:var(--mg);
-  color:#ffd6f6;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 14px rgba(255,47,208,.35)}
-button.pri{background:linear-gradient(180deg,#123a4a,#0a2130);border-color:#2c7f96;color:#c9f7ff}
-button.pri:hover{border-color:var(--cy);box-shadow:0 0 16px rgba(49,246,255,.35)}
-button.big{padding:10px;font-size:12px;letter-spacing:.09em;width:100%}
-button.hero{background:linear-gradient(180deg,#1d4e63,#0c2637);border-color:var(--cy);color:#e2fbff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 20px rgba(49,246,255,.22)}
-button.hero:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 28px rgba(49,246,255,.45)}
-button.ghost{background:transparent;border-color:transparent;color:var(--dim);box-shadow:none}
-button.ghost:hover{color:var(--cy);background:rgba(49,246,255,.06)}
-button.dgr{border-color:#7a2b4a;color:#ffb8d4}
-button:disabled{opacity:.35;cursor:not-allowed;transform:none}
-input[type=text],input[type=number],input[type=search]{cursor:text;background:#080b16;width:100%;user-select:text}
-input[type=text]:focus,input[type=number]:focus,input[type=search]:focus{border-color:var(--cy);box-shadow:0 0 12px rgba(49,246,255,.18)}
+  font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line2);border-radius:var(--r);
+  padding:0 10px;height:var(--ctl-h);cursor:pointer;outline:none;transition:background var(--t),border-color var(--t),color var(--t)}
+button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;white-space:nowrap;line-height:1}
+button:hover,select:hover{background:#2a2f36;border-color:var(--faint)}
+button:active{background:#1f2328}
+button.on,#tlHd .tgl.on{background:var(--acc-tint);border-color:var(--acc);color:#cfeef7}
+button.pri{background:var(--acc);border-color:var(--acc);color:#0b1d23;font-weight:600}
+button.pri:hover{background:#5ccbe8;border-color:#5ccbe8}
+button.big{height:34px;width:100%;font-size:13px}
+button.hero{background:var(--acc);border-color:var(--acc);color:#0b1d23;font-weight:600}
+button.hero:hover{background:#5ccbe8;border-color:#5ccbe8}
+button.hero.on{background:var(--warn);border-color:var(--warn);color:#2a1d04}
+button.ghost{background:transparent;border-color:transparent;color:var(--dim)}
+button.ghost:hover{color:var(--txt);background:var(--panel2)}
+button.dgr{border-color:#6b3a3a;color:#f0b4b4}
+button.dgr:hover{background:var(--dgr-tint);border-color:var(--dgr);color:#ffd4d4}
+button.icon{width:var(--ctl-h);padding:0}
+button.tgl{color:var(--dim)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input[type=text],input[type=number],input[type=search]{cursor:text;background:var(--inset);width:100%;user-select:text}
+input[type=text]:focus,input[type=number]:focus,input[type=search]:focus{border-color:var(--acc)}
 input[type=file]{display:none}
-a{color:var(--cy)}
+select{padding-right:26px;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3ad' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center}
 
-#time{font-size:12px;color:var(--lm);letter-spacing:.05em;font-variant-numeric:tabular-nums;white-space:nowrap;
-  background:#070a14;border:1px solid var(--line);border-radius:3px;padding:5px 9px;
-  text-shadow:0 0 10px rgba(166,255,47,.5);cursor:ew-resize;user-select:none;touch-action:none;
-  border-bottom-color:#3d5a1c;transition:border-color .12s,box-shadow .12s}
-#time:hover{border-color:#5c8a2a;box-shadow:0 0 12px rgba(166,255,47,.16)}
-#time.drag{border-color:var(--lm);box-shadow:0 0 18px rgba(166,255,47,.4);color:#e6ffbf}
-#time span{color:#5b6690}
+/* compteur de temps : le seul élément « machine » de l'en-tête */
+#time{font:500 13px/1 var(--mono);color:var(--txt);letter-spacing:.02em;font-variant-numeric:tabular-nums;white-space:nowrap;
+  background:var(--inset);border:1px solid var(--line);border-radius:var(--r);height:var(--ctl-h);display:flex;align-items:center;padding:0 10px;
+  cursor:ew-resize;user-select:none;touch-action:none;transition:border-color var(--t)}
+#time:hover{border-color:var(--line2)}
+#time.drag{border-color:var(--acc);color:var(--acc)}
+#time span{color:var(--faint);margin:0 5px}
+.speed{display:flex;gap:2px;align-items:center;margin-left:var(--s1)}
+.speed button{padding:0 7px;min-width:40px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.speed button.on{color:#cfeef7}
 
-/* ---------------- parcours ---------------- */
-.step{border:1px solid var(--line);border-radius:4px;background:#0a0d19;margin-bottom:8px;overflow:hidden}
-.step>h3{display:flex;align-items:center;gap:9px;padding:10px 11px;cursor:pointer;
-  background:linear-gradient(180deg,#141a32,#0d1122);border-bottom:1px solid transparent}
-.step>h3:hover .ttl{color:#fff}
-.step.open>h3{border-bottom-color:var(--line)}
-.step>h3 .num{width:21px;height:21px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line2);
-  display:grid;place-items:center;font-size:11px;color:var(--dim);background:#070a14;font-style:normal}
+/* ---------------- parcours (Préparer) ---------------- */
+.step{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);margin-bottom:var(--s2);overflow:hidden}
+.step>h3{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--dim);background:var(--panel)}
+.step>h3:hover{color:var(--txt)}
+.step.open>h3{border-bottom:1px solid var(--line);color:var(--txt)}
+.step>h3 .num{width:20px;height:20px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;
+  font:600 11px/1 var(--mono);color:var(--dim);background:var(--inset)}
 .step>h3 .num i{font-style:normal}
-.step>h3 .ttl{font-size:11.5px;letter-spacing:.16em;color:#a3b2e6;font-weight:600}
-.step>h3 .sum{margin-left:auto;font-size:11px;color:var(--faint);text-align:right;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
-.step.done>h3 .num{border-color:var(--lm);color:#0a0d19;background:var(--lm);font-weight:700}
+.step>h3 .sum{margin-left:auto;font-size:11.5px;font-weight:400;color:var(--faint);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
+.step.done>h3 .num{border-color:var(--ok);color:#0f2a1b;background:var(--ok)}
 .step.done>h3 .num::after{content:'✓'}
 .step.done>h3 .num i{display:none}
-.step.done>h3 .ttl{color:#7b89ba}
-.step.done>h3 .sum{color:var(--lm)}
-.step.dim:not(.open)>h3{opacity:.6}
-.step.active>h3{background:linear-gradient(180deg,#20284a,#121732)}
-.step.active>h3 .ttl{color:#fff}
-.step.active>h3 .num{border-color:var(--cy);color:var(--cy);box-shadow:0 0 10px rgba(49,246,255,.35)}
+.step.done>h3 .sum{color:var(--ok)}
+.step.dim:not(.open)>h3{opacity:.55}
+.step.active>h3 .num{border-color:var(--acc);color:var(--acc)}
 .step>.in{padding:11px;display:none}
 .step.open>.in{display:block}
 
-.hint{font-size:11px;color:#8491bd;line-height:1.6;padding:3px 0 6px}
-.hint b{color:#b6c3f2;font-weight:600}
-.hint.big{font-size:12px;line-height:1.75;color:#aab6e0}
-.hint.err{color:#ffb8d4}
-.cy{color:var(--cy)!important}
-.kbd{display:inline-block;background:#141a30;border:1px solid var(--line2);border-bottom-width:2px;
-  border-radius:3px;padding:0 5px;font-size:10.5px;color:#b6c3f2;line-height:1.5}
-.drop{display:block;border:1px dashed var(--line2);border-radius:4px;padding:18px 10px;text-align:center;
-  color:var(--dim);font-size:11px;cursor:pointer;transition:.12s}
-.drop:hover{border-color:var(--cy);color:var(--cy);background:rgba(49,246,255,.05)}
-.drop b{display:block;font-size:12px;letter-spacing:.1em;color:#b6c3f2;margin-bottom:3px}
-#lyricsText{width:100%;height:170px;resize:vertical;background:#070a14;color:var(--txt);user-select:text;
-  border:1px solid var(--line);border-radius:3px;padding:8px;font:12px/1.7 var(--mono);outline:none}
-#lyricsText:focus{border-color:var(--cy);box-shadow:0 0 14px rgba(49,246,255,.18)}
-#lyricsText::placeholder{color:#4d5883}
-.rowbtn{display:flex;gap:6px;margin-top:8px}
-.rowbtn>*{flex:1}
-.more{font-size:11px;color:var(--dim);cursor:pointer;padding:8px 0 2px;display:block}
-.more:hover{color:var(--cy)}
-.more::before{content:'▸ ';font-size:9px}
-.more.open::before{content:'▾ '}
-.moreBox{display:none;padding:4px 0 2px}
-.moreBox.on{display:block}
+.hint{font-size:12px;color:var(--dim);line-height:1.55;padding:var(--s1) 0 var(--s2)}
+.hint b{color:var(--txt);font-weight:600}
+.hint.big{font-size:13px;line-height:1.65;color:var(--txt)}
+.hint.err{color:#f0b4b4}
+.cy{color:var(--acc)!important}
+.kbd{display:inline-block;background:var(--inset);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 5px;
+  font:500 11px/1.6 var(--mono);color:var(--txt);vertical-align:1px}
+.drop{display:block;border:1px dashed var(--line2);border-radius:var(--r);padding:16px 10px;text-align:center;color:var(--dim);font-size:12px;cursor:pointer;transition:border-color var(--t),color var(--t),background var(--t)}
+.drop:hover{border-color:var(--acc);color:var(--txt);background:var(--acc-tint)}
+.drop b{display:block;font-size:13px;color:var(--txt);margin-bottom:2px}
+#lyricsText{width:100%;height:170px;resize:vertical;background:var(--inset);color:var(--txt);user-select:text;
+  border:1px solid var(--line2);border-radius:var(--r);padding:8px 10px;font:13px/1.65 var(--sans);outline:none}
+#lyricsText:focus{border-color:var(--acc)}
+#lyricsText::placeholder{color:var(--faint)}
+.rowbtn{display:flex;gap:6px;margin-top:var(--s2)}
+.rowbtn>*{flex:1;min-width:0}
+details.more{margin-top:var(--s2)}
+details.more>summary{list-style:none;cursor:pointer;font-size:12px;color:var(--dim);padding:5px 0;display:flex;align-items:center;gap:6px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:'';width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform var(--t);margin:0 3px}
+details.more[open]>summary::before{transform:rotate(45deg)}
+details.more>summary:hover{color:var(--txt)}
+details.more>*:not(summary){margin-top:var(--s1)}
 
-.lineRow{border:1px solid var(--line);border-radius:3px;margin-bottom:6px;background:#090c18;overflow:hidden}
-.lineRow.act{border-color:var(--mg);box-shadow:0 0 12px rgba(255,47,208,.2)}
-.lineHd{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#0f1428;font-size:10.5px;
-  color:var(--dim);border-bottom:1px solid var(--line);cursor:pointer}
-.lineHd b{color:var(--cy);font-weight:600}
-.lineHd .untimed{color:#5d6890}
+.sylHead{display:flex;align-items:center;gap:var(--s2);margin:var(--s1) 0 var(--s2)}
+.sylHead span{font-size:12px;color:var(--dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sylHead button{height:24px;font-size:11.5px;padding:0 8px}
+.lineRow{border:1px solid var(--line);border-radius:var(--r);margin-bottom:6px;background:var(--panel);overflow:hidden}
+.lineRow.act{border-color:var(--acc)}
+.lineHd{display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--panel2);font-size:11.5px;color:var(--dim);border-bottom:1px solid var(--line);cursor:pointer}
+.lineHd b{font:600 11px var(--mono);color:var(--acc)}
+.lineHd .untimed{color:var(--faint)}
 .lineHd .mini{margin-left:auto;display:flex;gap:3px}
-.mini button{padding:1px 6px;font-size:10px;border-radius:2px}
-.sylWrap{display:flex;flex-wrap:wrap;gap:4px;padding:10px 6px 6px}
-.syl{padding:2px 6px;border:1px solid var(--line2);border-radius:2px;background:#111730;font-size:12px;
-  cursor:pointer;position:relative;white-space:pre}
-.syl:hover{border-color:var(--cy);color:#fff}
-.syl.timed{background:linear-gradient(180deg,#123047,#0a1c2c);border-color:#2d6f8e}
-.syl.sel{background:linear-gradient(180deg,#3a0f52,#1d0729);border-color:var(--mg);color:#ffd6f6;
-  box-shadow:0 0 10px rgba(255,47,208,.4)}
-.syl.cur{outline:2px solid var(--lm);outline-offset:1px}
-.syl .t{position:absolute;top:-9px;left:0;font-size:8.5px;color:#66739f;font-style:normal}
+.mini button{height:20px;width:22px;padding:0;border-radius:var(--r-sm);font-size:11px}
+.sylWrap{display:flex;flex-wrap:wrap;gap:4px;padding:12px 8px 8px}
+.syl{padding:3px 7px;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--panel2);font-size:12.5px;cursor:pointer;position:relative;white-space:pre}
+.syl:hover{border-color:var(--faint);color:#fff}
+.syl.timed{border-color:var(--acc-dk)}
+.syl.sel{background:var(--acc-tint2);border-color:var(--acc);color:#fff}
+.syl.cur{outline:2px solid var(--warn);outline-offset:1px}
+.syl .t{position:absolute;top:-10px;left:1px;font:11px var(--mono);color:var(--faint);font-style:normal}
 
-/* ---------------- recherche en ligne ---------------- */
+/* ---------------- listes : résultats en ligne, set, bibliothèque ---------------- */
 .searchRow{display:flex;gap:6px;margin:4px 0 6px}
 .searchRow input{flex:1;min-width:0}
 .results{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto}
-.result,.list .item{display:flex;align-items:center;gap:7px;padding:6px 7px;border:1px solid var(--line);
-  border-radius:3px;background:#090c18}
-.result:hover,.list .item:hover{border-color:var(--line2);background:#0d1122}
+.result,.list .item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.result:hover,.list .item:hover{border-color:var(--line2);background:var(--panel2)}
 .rMain{flex:1;min-width:0;display:flex;flex-direction:column}
-.rMain b{font-weight:600;color:#e0e7ff;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rMain span{font-size:10.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.result button,.list .item .tools button{padding:3px 7px;font-size:10.5px}
-.badge{font-size:9.5px;letter-spacing:.05em;padding:1px 5px;border-radius:2px;border:1px solid;white-space:nowrap}
-.badge.sync{color:var(--lm);border-color:#4a6d22}
-.badge.txt{color:var(--am);border-color:#6d5122}
-.badge.none{color:#8a97c6;border-color:#343e66}
+.rMain b{font-weight:600;color:var(--txt);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rMain span{font-size:11.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.result button,.list .item .tools button{height:24px;padding:0 8px;font-size:11.5px}
+.badge{font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid;white-space:nowrap;color:var(--dim);border-color:var(--line2)}
+.badge.sync{color:var(--ok);border-color:#345a44}
+.badge.txt{color:var(--warn);border-color:#5f4a25}
 
-/* ---------------- style ---------------- */
-#right .top{padding:9px 10px;border-bottom:1px solid var(--line);background:#0a0d1a;flex:0 0 auto}
-.lbl{font-size:10.5px;letter-spacing:.16em;color:#8d9bcc}
-.lbl2{font-size:10.5px;letter-spacing:.16em;color:#8d9bcc;margin:10px 0 5px}
+/* ---------------- Style ---------------- */
+#right .top{padding:10px var(--s3);border-bottom:1px solid var(--line);flex:0 0 auto}
+.lbl{font-size:12px;color:var(--dim)}
+.lbl2{font-size:12px;color:var(--dim);margin:10px 0 5px}
 .presets{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-top:6px}
-.presets button{padding:7px 4px;font-size:10.5px;letter-spacing:.06em}
-.modeRow{display:flex;gap:4px;margin-top:7px}
-.modeRow button{flex:1;padding:5px;font-size:10.5px;letter-spacing:.1em}
-.tabs{display:flex;border-bottom:1px solid var(--line);background:#0a0d1a;flex:0 0 auto}
-.tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:8px 2px;
-  font-size:10.5px;letter-spacing:.06em;color:var(--dim);box-shadow:none}
-.tabs button:hover{color:var(--txt);background:rgba(49,246,255,.05)}
-.tabs button.on{color:#fff;background:linear-gradient(180deg,rgba(255,47,208,.16),transparent);
-  box-shadow:inset 0 -2px 0 var(--mg)}
+.presets button{font-size:12px}
+.modeRow{display:flex;gap:4px;margin-top:8px}
+.modeRow button{flex:1;font-size:12px}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:0 0 auto;padding:0 var(--s1)}
+.tabs button{flex:1;border:0;border-radius:0;background:transparent;height:36px;font-size:12.5px;color:var(--dim);box-shadow:inset 0 -2px 0 transparent}
+.tabs button:hover{color:var(--txt);background:transparent}
+.tabs button.on{color:var(--txt);background:transparent;box-shadow:inset 0 -2px 0 var(--acc)}
 .tabpage{display:none}.tabpage.on{display:block}
 
-.grp{margin:0 0 10px;border:1px solid var(--line);border-radius:4px;background:#0a0d19;overflow:hidden}
-.grp>h3{font-size:10.5px;letter-spacing:.17em;color:#a3b2e6;background:linear-gradient(180deg,#161c36,#0e1224);
-  padding:7px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600}
-.grp>h3::before{content:'▾';font-size:9px;color:var(--cy)}
-.grp.fold>h3::before{content:'▸'}
+.grp{margin:0 0 var(--s2);border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.grp>h3{font-size:12.5px;font-weight:600;color:var(--txt);padding:8px 11px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;cursor:pointer}
+.grp>h3::before{content:'';width:5px;height:5px;border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:rotate(45deg);margin:0 3px 2px}
+.grp.fold>h3{border-bottom:0}
+.grp.fold>h3::before{transform:rotate(-45deg)}
 .grp.fold>.grpin{display:none}
-.grpin{padding:9px 10px}
-.row{display:grid;grid-template-columns:104px 1fr 50px;align-items:center;gap:7px;margin-bottom:7px}
-.row>label{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .val{font-size:11px;color:var(--cy);text-align:right;font-variant-numeric:tabular-nums}
-.row.wide{grid-template-columns:104px 1fr}
+.grpin{padding:10px 11px}
+.row{display:grid;grid-template-columns:118px 1fr 52px;align-items:center;gap:8px;margin-bottom:7px}
+.row>label{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .val{font:12px var(--mono);color:var(--txt);text-align:right;font-variant-numeric:tabular-nums}
+.row.wide{grid-template-columns:118px 1fr}
 .row.full{grid-template-columns:1fr}
-.row select{width:100%;padding:4px 5px;font-size:11px}
+.row select{width:100%;height:26px;font-size:12px}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:ew-resize}
-input[type=range]::-webkit-slider-runnable-track{background:#151b33;border:1px solid #232c50;height:5px;border-radius:3px}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:15px;margin-top:-6px;
-  border-radius:2px;background:var(--chrome);border:1px solid #0a0d1a;box-shadow:0 0 8px rgba(49,246,255,.5)}
-input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 12px rgba(255,47,208,.7)}
-input[type=color]{-webkit-appearance:none;appearance:none;width:100%;height:21px;padding:0;
-  border:1px solid var(--line2);border-radius:3px;background:#000;cursor:pointer}
-input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+input[type=range]::-webkit-slider-runnable-track{background:var(--line2);height:3px;border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-4.5px;border-radius:50%;background:var(--txt);border:2px solid var(--panel)}
+input[type=range]:hover::-webkit-slider-thumb,input[type=range]:focus-visible::-webkit-slider-thumb{background:var(--acc)}
+input[type=color]{-webkit-appearance:none;appearance:none;width:100%;height:24px;padding:0;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--inset);cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
 input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
-.chk{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);cursor:pointer;padding:4px 0}
-.chk input{display:none}
-.chk i{width:14px;height:14px;border:1px solid var(--line2);border-radius:2px;background:#080b16;
-  display:inline-block;position:relative;flex:0 0 auto}
-.chk input:checked+i{background:linear-gradient(180deg,var(--mg),#8a0f6e);border-color:var(--mg);
-  box-shadow:0 0 10px rgba(255,47,208,.55)}
-.chk input:checked+i::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;
-  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(43deg)}
+.chk{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--dim);cursor:pointer;padding:5px 0;position:relative}
+.chk input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.chk i{width:15px;height:15px;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--inset);display:inline-block;position:relative;flex:0 0 auto}
+.chk input:checked+i{background:var(--acc);border-color:var(--acc)}
+.chk input:checked+i::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #0b1d23;border-width:0 2px 2px 0;transform:rotate(43deg)}
+.chk input:focus-visible+i{outline:2px solid var(--acc);outline-offset:1px}
 .chk:hover{color:var(--txt)}
 
 /* ---------------- rythme ---------------- */
 .beatBox{display:flex;flex-direction:column;gap:6px}
 .bpmRow{display:flex;align-items:center;gap:8px}
-.bpmRow .bpmIn{width:96px;font-size:22px;font-weight:700;color:var(--lm);padding:2px 6px;text-align:right;
-  text-shadow:0 0 12px rgba(166,255,47,.4)}
-.bpmRow>span:not(.beatDots){font-size:11px;color:var(--dim);letter-spacing:.12em}
+.bpmRow .bpmIn{width:96px;height:34px;font:600 20px var(--mono);color:var(--txt);padding:0 8px;text-align:right}
+.bpmRow>span:not(.beatDots){font-size:12px;color:var(--dim)}
 .beatDots{display:flex;gap:5px;margin-left:auto}
-.beatDots i{width:11px;height:11px;border-radius:50%;background:#141a33;border:1px solid var(--line2)}
-.beatDots i.on{background:var(--mg);border-color:var(--mg);box-shadow:0 0 10px var(--mg)}
-.beatDots i:first-child.on{background:var(--cy);border-color:var(--cy);box-shadow:0 0 10px var(--cy)}
+.beatDots i{width:10px;height:10px;border-radius:50%;background:var(--inset);border:1px solid var(--line2)}
+.beatDots i.on{background:var(--dim);border-color:var(--dim)}
+.beatDots i:first-child.on{background:var(--acc);border-color:var(--acc)}
 .segRow{display:flex;gap:3px;margin:3px 0}
-.segRow>button{flex:1;padding:6px 3px;font-size:10.5px;letter-spacing:.05em}
-.segRow.tight>button{padding:4px 2px}
+.segRow>button{flex:1;padding:0 4px;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.segRow.tight>button{height:26px;font-size:11.5px}
 .bTap.flash{animation:tapflash .22s}
-@keyframes tapflash{from{box-shadow:0 0 30px rgba(166,255,47,.9);border-color:var(--lm)}}
+@keyframes tapflash{from{background:var(--txt);color:#000}}
 
-/* ---------------- live ---------------- */
-.lvHead{display:flex;align-items:baseline;gap:8px;padding:2px 0 6px;flex:0 0 auto}
-.lvHead b{font-size:11px;letter-spacing:.18em;color:#a3b2e6}
-.lvHead span{font-size:10.5px;color:var(--faint);margin-left:auto}
-#liveLines{padding:8px 11px}
+/* ---------------- Live ---------------- */
+.lvHead{display:flex;align-items:baseline;gap:8px;padding:2px 0 8px;flex:0 0 auto}
+.lvHead b{font-size:13px;font-weight:600;color:var(--txt)}
+.lvHead span{font-size:12px;color:var(--faint);margin-left:auto}
+#liveLines{padding:var(--s3)}
 .list{display:flex;flex-direction:column;gap:4px}
 #setList{margin-bottom:6px}
 .list .item{cursor:pointer}
-.list .item.cur{border-color:var(--mg);background:linear-gradient(90deg,rgba(255,47,208,.14),#090c18);box-shadow:0 0 12px rgba(255,47,208,.2)}
-.list .item .idx{font-size:11px;color:var(--cy);width:16px;text-align:right;flex:0 0 auto}
-.list .item .tools{display:flex;gap:2px;opacity:.55}
-.list .item:hover .tools,.list .item.cur .tools{opacity:1}
-.lvBox{border:1px solid var(--line);border-radius:4px;background:#0a0d19;margin-top:8px}
-.lvBox>summary{cursor:pointer;padding:8px 10px;font-size:10.5px;letter-spacing:.16em;color:#a3b2e6;font-weight:600;
-  list-style:none;background:linear-gradient(180deg,#161c36,#0e1224)}
-.lvBox>summary::before{content:'▸ ';color:var(--cy)}
-.lvBox[open]>summary::before{content:'▾ '}
+.list .item.cur{border-color:var(--acc);background:var(--acc-tint)}
+.list .item .idx{font:600 12px var(--mono);color:var(--acc);width:16px;text-align:right;flex:0 0 auto}
+.list .item .tools{display:flex;gap:2px;opacity:0;transition:opacity var(--t)}
+.list .item:hover .tools,.list .item.cur .tools,.list .item:focus-within .tools{opacity:1}
+.lvBox{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);margin-top:var(--s2)}
+.lvBox>summary{cursor:pointer;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--txt);list-style:none;display:flex;align-items:center;gap:7px}
 .lvBox>summary::-webkit-details-marker{display:none}
-.lvBox>*:not(summary){margin:8px 10px}
-.lvBox>input{width:calc(100% - 20px)}
+.lvBox>summary::before{content:'';width:5px;height:5px;border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:rotate(-45deg);margin:0 3px}
+.lvBox[open]>summary::before{transform:rotate(45deg);margin-bottom:2px}
+.lvBox>summary span{color:var(--faint);font-weight:400}
+.lvBox>*:not(summary){margin:8px 11px}
+.lvBox>input{width:calc(100% - 22px)}
 .lvBox .list{max-height:34vh;overflow-y:auto}
 #lvLines{overflow-y:auto;flex:1;min-height:0;gap:1px;padding-right:4px}
-#lvLines .line{display:flex;gap:10px;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:13px;color:#7d8ab8;
-  border:1px solid transparent}
-#lvLines .line:hover{background:#0f1428;color:#dfe6ff}
-#lvLines .line .lt{font-size:10.5px;color:#56628e;flex:0 0 auto;padding-top:2px;font-variant-numeric:tabular-nums}
-#lvLines .line.cur{color:#fff;background:linear-gradient(90deg,rgba(255,47,208,.22),rgba(49,246,255,.06));border-color:var(--mg)}
-#lvLines .line.cur .lt{color:var(--cy)}
+#lvLines .line{display:flex;gap:12px;padding:6px 10px;border-radius:var(--r);cursor:pointer;font-size:14px;color:var(--dim);border:1px solid transparent}
+#lvLines .line:hover{background:var(--panel2);color:var(--txt)}
+#lvLines .line .lt{font:12px var(--mono);color:var(--faint);flex:0 0 auto;padding-top:2px;font-variant-numeric:tabular-nums}
+#lvLines .line.cur{color:#fff;background:var(--acc-tint);border-color:var(--acc)}
+#lvLines .line.cur .lt{color:var(--acc)}
 #lvLines .line.untimed{opacity:.5}
-.transport{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:5px;margin:7px 0}
-.transport button{font-size:20px;padding:10px 0}
-.lvStatus{font-size:11px;margin:7px 0 2px}
+.transport{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:5px;margin:8px 0}
+.transport button{height:40px;width:100%}
+.transport button svg.ic{width:20px;height:20px}
+.lvStatus{font-size:12px;margin:8px 0 2px;display:flex;align-items:center;gap:7px}
 #sceneState{color:var(--faint)}
-#sceneState.on{color:var(--lm);text-shadow:0 0 10px rgba(166,255,47,.4)}
-#lvKey .kGreen.on{border-color:#00b140;background:linear-gradient(180deg,#0b3a1d,#06200f);color:#b9ffd0;box-shadow:0 0 12px rgba(0,177,64,.5)}
-#lvKey .kBlue.on{border-color:#2f6bff;background:linear-gradient(180deg,#0b1f4a,#06112b);color:#c9d9ff;box-shadow:0 0 12px rgba(47,107,255,.5)}
+#sceneState::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--line2);display:inline-block;margin-right:7px;vertical-align:0}
+#sceneState.on{color:var(--ok)}
+#sceneState.on::before{background:var(--ok)}
+#lvKey .kGreen.on{border-color:#00b140;background:rgba(0,177,64,.18);color:#bfffd6}
+#lvKey .kBlue.on{border-color:#2f6bff;background:rgba(47,107,255,.2);color:#cfdcff}
 #lvKey .kBlack.on{border-color:#aaa;background:#000;color:#fff}
-#lvBlack.on{background:linear-gradient(180deg,#4a0f1e,#26060f);border-color:#ff4d6d;color:#ffd0d8;box-shadow:0 0 18px rgba(255,77,109,.45)}
-table.keys{width:100%;border-collapse:collapse;font-size:11px}
-table.keys td{padding:3px 2px;color:var(--dim);vertical-align:top}
-table.keys td:first-child{white-space:nowrap;width:1%;padding-right:8px}
+#lvBlack.on{background:var(--dgr-tint);border-color:var(--dgr);color:#ffd4d4}
 
-/* ---------------- scène ---------------- */
-#stage{background:#03040a;position:relative;display:flex;align-items:center;justify-content:center}
-#stageWrap{position:relative;box-shadow:0 0 0 1px #1b2340,0 20px 60px rgba(0,0,0,.7),0 0 60px rgba(49,246,255,.06)}
-#glc{display:block;background:repeating-conic-gradient(#0c0f1a 0% 25%, #10131f 0% 50%) 0 0/18px 18px}
-#stageInfo{position:absolute;left:10px;top:8px;font-size:10.5px;pointer-events:none;
-  color:#5d6a95;letter-spacing:.08em;text-shadow:0 0 8px #000}
-#stageBadge{position:absolute;right:10px;top:8px;font-size:10.5px;color:#5d6a95;letter-spacing:.08em;text-shadow:0 0 8px #000;pointer-events:none}
-#dropHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
-  gap:8px;color:#6e7bab;font-size:12px;letter-spacing:.1em;pointer-events:none;text-align:center;padding:12px}
+/* ---------------- scène (aperçu) ---------------- */
+#stage{background:var(--bg);position:relative;display:flex;align-items:center;justify-content:center}
+#stageWrap{position:relative;box-shadow:0 0 0 1px var(--line),0 24px 60px rgba(0,0,0,.6)}
+#glc{display:block;background:repeating-conic-gradient(#191c20 0% 25%,#1e2126 0% 50%) 0 0/18px 18px}
+#stageInfo{position:absolute;left:10px;top:8px;font:11px var(--mono);pointer-events:none;color:var(--dim);text-shadow:0 0 6px #000}
+#stageBadge{position:absolute;right:10px;top:8px;font:11px var(--mono);color:var(--dim);text-shadow:0 0 6px #000;pointer-events:none}
+body:not(.ui-expert) #stageBadge{display:none}
+#dropHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--dim);font-size:13px;pointer-events:none;text-align:center;padding:12px}
 #dropHint.hide{display:none}
-#dropHint b{color:var(--cy);font-size:15px;letter-spacing:.2em}
-#pausedNote{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:8px;
-  background:rgba(3,4,10,.86);text-align:center;font-size:12px;color:#8491bd;padding:12px}
-#pausedNote b{color:var(--lm);letter-spacing:.18em}
+#dropHint b{color:var(--txt);font-size:16px;font-weight:600}
+#pausedNote{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:rgba(21,23,26,.9);text-align:center;font-size:13px;color:var(--dim);padding:12px}
+#pausedNote b{color:var(--txt);font-size:15px}
 #stageWrap.paused #pausedNote{display:flex}
 #sceneWait{display:none}
 
-/* ---------- ralenti ---------- */
-.speed{display:flex;gap:2px;align-items:center}
-.speed button{padding:5px 6px;font-size:11px;min-width:40px}
-.speed button.on{background:linear-gradient(180deg,#3a2a08,#241a04);border-color:var(--am);
-  color:#ffdca8;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 12px rgba(255,176,47,.35)}
-
-/* ---------- HUD de calage ---------- */
-#tapHud{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;background:rgba(3,4,10,.82);backdrop-filter:blur(2px);text-align:center;padding:20px}
+/* ---------- HUD de calage : le seul moment spectaculaire de la coque ---------- */
+#tapHud{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(21,23,26,.86);backdrop-filter:blur(2px);text-align:center;padding:20px}
 #tapHud.on{display:flex}
-#tapHud .tprog{width:min(460px,80%);height:4px;background:#0a0e1c;border:1px solid var(--line2);
-  border-radius:3px;overflow:hidden}
-#tapHud .tprog>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg),var(--cy));
-  transition:width .12s}
-#tapHud .tcount{font-size:11px;letter-spacing:.18em;color:#7380ad}
-#tapHud .tprev{font-size:16px;color:#56628e;letter-spacing:.04em;min-height:22px}
-#tapHud .tcur{font-size:min(64px,7vw);font-weight:800;letter-spacing:.03em;line-height:1.1;
-  color:#fff;text-shadow:0 0 30px rgba(49,246,255,.55),0 0 70px rgba(255,47,208,.35);
-  min-height:1.1em;padding:0 10px}
-#tapHud .tnext{font-size:18px;color:#8491bd;letter-spacing:.04em;min-height:24px}
-#tapHud .tbtn{margin-top:10px;padding:14px 32px;font-size:13px;letter-spacing:.14em;touch-action:none;
-  background:linear-gradient(180deg,#1d4e63,#0c2637);border-color:var(--cy);color:#e2fbff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 24px rgba(49,246,255,.3)}
-#tapHud .tbtn b{color:var(--lm);font-size:15px;margin-left:6px}
-#tapHud .tbtn:active{background:linear-gradient(180deg,#2b7590,#123448);
-  box-shadow:0 0 40px rgba(49,246,255,.6)}
-#tapHud .tfoot{margin-top:6px;font-size:11px;color:#6b78a6;letter-spacing:.05em}
-#tapHud .tfoot b{color:var(--am)}
+#tapHud .tprog{width:min(460px,80%);height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+#tapHud .tprog>i{display:block;height:100%;width:0;background:var(--acc);transition:width .12s}
+#tapHud .tcount{font:12px var(--mono);color:var(--faint)}
+#tapHud .tprev{font-size:18px;color:var(--faint);min-height:24px}
+#tapHud .tcur{font-size:min(72px,7.5vw);font-weight:700;letter-spacing:-.01em;line-height:1.1;color:#fff;min-height:1.1em;padding:0 10px}
+#tapHud .tnext{font-size:20px;color:var(--dim);min-height:26px}
+#tapHud .tbtn{margin-top:12px;height:48px;padding:0 34px;font-size:14px;touch-action:none;background:var(--acc);border-color:var(--acc);color:#0b1d23;font-weight:600}
+#tapHud .tbtn b{font:600 15px var(--mono);margin-left:4px;background:rgba(0,0,0,.18);padding:2px 7px;border-radius:4px}
+#tapHud .tbtn:active{background:#fff;border-color:#fff}
+#tapHud .tfoot{margin-top:8px;font-size:12px;color:var(--faint)}
+#tapHud .tfoot b{color:var(--warn)}
 #tapHud.flash .tcur{animation:tflash .18s}
-@keyframes tflash{from{transform:scale(1.12);text-shadow:0 0 50px rgba(166,255,47,.9)}}
+@keyframes tflash{from{transform:scale(1.1);color:var(--acc)}}
 
 /* ---------------- timeline ---------------- */
-#tl{background:var(--panel2);display:flex;flex-direction:column;min-height:0}
-#tlHd{display:flex;align-items:center;gap:6px;padding:5px 9px;border-bottom:1px solid var(--line);
-  background:#0b0e1c;flex:0 0 auto;overflow:hidden}
-#tlHd .lbl{font-size:10.5px;letter-spacing:.1em;color:#8d9bcc;white-space:nowrap}
+#tl{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+#tlHd{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--line);flex:0 0 auto;overflow:hidden}
+#tlHd .lbl{font:12px var(--mono);color:var(--dim);white-space:nowrap}
 #tlHd .tools{display:flex;gap:2px}
-#tlHd .tools button,#tlHd .tgl{padding:3px 8px;font-size:11px;line-height:1.2;min-width:28px}
-#tlHd .tools button.on,#tlHd .tgl.on{background:linear-gradient(180deg,#0d3a4c,#07202c);border-color:var(--cy);
-  color:#c9f7ff;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 12px rgba(49,246,255,.35)}
-#tlSel{color:var(--mg)!important}
+#tlHd button{height:26px;font-size:12px}
+#tlHd button.icon{width:26px}
+#tlHd .tgl.paused{border-style:dashed;color:var(--warn);border-color:var(--warn);background:transparent}
+#tlSel{color:var(--txt)}
 #tlScroll{flex:1;min-height:0;overflow:hidden;position:relative}
 #tlCanvas{display:block;width:100%;height:100%;cursor:default;touch-action:none}
-#tlTip{position:absolute;pointer-events:none;background:rgba(11,14,28,.95);border:1px solid var(--mg);
-  border-radius:3px;padding:3px 7px;font-size:11px;color:#ffd6f6;display:none;z-index:5;white-space:nowrap}
+#tlTip{position:absolute;pointer-events:none;background:rgba(17,19,23,.96);border:1px solid var(--line2);border-radius:var(--r-sm);padding:4px 8px;font:12px var(--mono);color:var(--txt);display:none;z-index:5;white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* ---------------- menus, toasts, modales ---------------- */
-#ctx{position:fixed;z-index:10002;display:none;min-width:240px;background:rgba(12,16,34,.97);
-  backdrop-filter:blur(6px);border:1px solid var(--line2);border-radius:4px;padding:4px;
-  box-shadow:0 0 0 1px #000,0 16px 44px rgba(0,0,0,.8),0 0 34px rgba(255,47,208,.14)}
+#ctx{position:fixed;z-index:10002;display:none;min-width:240px;background:var(--panel2);border:1px solid var(--line2);border-radius:var(--r);padding:4px;box-shadow:var(--shadow)}
 #ctx.on{display:block}
-#ctx .it{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:3px;font-size:12px;
-  color:var(--txt);cursor:pointer;white-space:nowrap}
-#ctx .it:hover{background:linear-gradient(90deg,rgba(255,47,208,.22),rgba(49,246,255,.10));color:#fff}
-#ctx .it.dgr{color:#ffb8d4}
-#ctx .it.dis{color:#48537c;cursor:default}
-#ctx .it.dis:hover{background:none;color:#48537c}
-#ctx .it .k{margin-left:auto;font-size:10.5px;color:#6b78a6}
-#ctx .hd{padding:6px 10px 3px;font-size:10px;letter-spacing:.16em;color:#7380ad}
+#ctx .it{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--r-sm);font-size:12.5px;color:var(--txt);cursor:pointer;white-space:nowrap}
+#ctx .it:hover{background:var(--acc-tint);color:#fff}
+#ctx .it.dgr{color:#f0b4b4}
+#ctx .it.dgr:hover{background:var(--dgr-tint)}
+#ctx .it.dis{color:var(--faint);cursor:default}
+#ctx .it.dis:hover{background:none;color:var(--faint)}
+#ctx .it .k{margin-left:auto;font:11px var(--mono);color:var(--faint)}
+#ctx .hd{padding:6px 10px 3px;font-size:11.5px;color:var(--faint)}
 #ctx .sp{height:1px;background:var(--line);margin:4px 6px}
 
-#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;
-  flex-direction:column;gap:6px;align-items:center;pointer-events:none;max-width:80vw}
-.tst{background:rgba(12,16,34,.95);border:1px solid var(--cy);border-radius:3px;padding:8px 15px;
-  font-size:12px;color:#c9f7ff;box-shadow:0 0 24px rgba(49,246,255,.25);letter-spacing:.03em;animation:tin .2s;text-align:center}
-.tst.err{border-color:var(--mg);color:#ffd6f6;box-shadow:0 0 24px rgba(255,47,208,.3)}
-@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;max-width:80vw}
+.tst{background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:var(--r);padding:8px 14px;font-size:12.5px;color:var(--txt);box-shadow:var(--shadow);animation:tin .18s;text-align:center}
+.tst.err{border-left-color:var(--dgr)}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}}
 
-#modal{position:fixed;inset:0;background:rgba(2,3,8,.6);backdrop-filter:blur(3px);z-index:10001;
-  display:none;align-items:center;justify-content:center}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:none;align-items:center;justify-content:center}
 #modal.on{display:flex}
-#modalBox{background:var(--panel);border:1px solid var(--line2);border-radius:5px;min-width:380px;max-width:min(560px,92vw);
-  box-shadow:0 0 0 1px #000,0 30px 80px rgba(0,0,0,.8),0 0 60px rgba(255,47,208,.14)}
-#modalBox h2{font-size:12px;letter-spacing:.18em;padding:11px 15px;border-bottom:1px solid var(--line);
-  background:var(--hdr);color:#fff}
-#modalBody{padding:15px}
-#modalFoot{padding:10px 15px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:#0a0d19}
-.bar{height:8px;background:#0a0e1c;border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin:9px 0}
-.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg),var(--cy));
-  box-shadow:0 0 14px rgba(49,246,255,.5);transition:width .15s}
+#modalBox{background:var(--panel);border:1px solid var(--line2);border-radius:8px;min-width:380px;max-width:min(560px,92vw);box-shadow:var(--shadow)}
+#modalBox h2{font-size:14px;font-weight:600;padding:13px 16px;border-bottom:1px solid var(--line);color:var(--txt)}
+#modalBody{padding:16px}
+#modalFoot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.bar{height:6px;background:var(--inset);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.bar>i{display:block;height:100%;width:0;background:var(--acc);transition:width .15s}
 
 /* ---------------- aide ---------------- */
-#helpBar{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:none;align-items:center;gap:10px;
-  padding:8px 14px;background:linear-gradient(180deg,rgba(11,14,28,.93),rgba(7,10,20,.97));
-  border-top:1px solid var(--cy);font-size:12px;color:#aab6e0;box-shadow:0 -8px 30px rgba(0,0,0,.6)}
+#helpBar{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:none;align-items:center;gap:12px;padding:9px 16px;background:var(--panel2);border-top:1px solid var(--acc);font-size:13px;color:var(--txt);box-shadow:0 -8px 30px rgba(0,0,0,.5)}
 #helpBar.on{display:flex}
-#helpBar b{color:var(--cy);letter-spacing:.12em;font-size:10.5px;flex:0 0 auto;text-shadow:0 0 10px rgba(49,246,255,.5)}
-#helpBar span{color:#d3dcff}
-#helpBar em{color:var(--mg);font-style:normal}
-body.helpmode #app{height:calc(100vh - 36px)}
-body.helpmode [data-help]:hover{outline:1px solid rgba(49,246,255,.55);outline-offset:1px}
-#helpPanel{position:fixed;inset:0;z-index:10003;display:none;background:rgba(2,3,8,.6);backdrop-filter:blur(4px)}
+#helpBar b{color:var(--acc);font-weight:600;flex:0 0 auto}
+#helpBar em{color:var(--txt);font-style:normal;font-weight:600}
+body.helpmode #app{height:calc(100vh - 38px)}
+body.helpmode [data-help]:hover{outline:1px solid var(--acc);outline-offset:1px}
+#helpPanel{position:fixed;inset:0;z-index:10003;display:none;background:rgba(0,0,0,.55)}
 #helpPanel.on{display:flex;align-items:center;justify-content:center}
-#helpBox{width:min(1080px,94vw);height:min(760px,90vh);background:var(--panel);border:1px solid var(--line2);
-  border-radius:5px;display:flex;flex-direction:column;
-  box-shadow:0 0 0 1px #000,0 30px 90px rgba(0,0,0,.85),0 0 70px rgba(49,246,255,.12)}
-#helpBox>header{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--hdr);
-  border-bottom:1px solid var(--line2)}
-#helpBox>header h2{font-size:12px;letter-spacing:.2em;color:#fff}
+#helpBox{width:min(1080px,94vw);height:min(760px,90vh);background:var(--panel);border:1px solid var(--line2);border-radius:8px;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+#helpBox>header{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line)}
+#helpBox>header h2{font-size:15px;font-weight:600;color:var(--txt)}
 #helpBody{flex:1;overflow-y:auto;padding:16px;columns:2;column-gap:22px;user-select:text}
 @media (max-width:900px){#helpBody{columns:1}}
-.hsec{break-inside:avoid;margin:0 0 16px;border:1px solid var(--line);border-radius:4px;background:#0a0d19;overflow:hidden}
-.hsec h3{font-size:10.5px;letter-spacing:.18em;color:#a3b2e6;background:linear-gradient(180deg,#161c36,#0e1224);
-  padding:7px 10px;border-bottom:1px solid var(--line)}
+.hsec{break-inside:avoid;margin:0 0 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.hsec h3{font-size:13px;font-weight:600;color:var(--txt);padding:8px 11px;border-bottom:1px solid var(--line)}
 .hsec table{width:100%;border-collapse:collapse}
-.hsec td{padding:5px 10px;font-size:11.5px;vertical-align:top;border-bottom:1px solid #11162a}
+.hsec td{padding:5px 11px;font-size:12.5px;vertical-align:top;border-bottom:1px solid var(--line)}
 .hsec tr:last-child td{border-bottom:0}
-.hsec td:first-child{white-space:nowrap;width:1%;color:#b6c3f2}
-.hsec td:last-child{color:#93a0cc}
-.hsec p{padding:8px 10px;font-size:11.5px;color:#93a0cc;line-height:1.65}
-.hsec b{color:var(--cy);font-weight:600}
-.hsec em{color:var(--mg);font-style:normal}
+.hsec td:first-child{white-space:nowrap;width:1%;color:var(--txt)}
+.hsec td:last-child{color:var(--dim)}
+.hsec p{padding:9px 11px;font-size:12.5px;color:var(--dim);line-height:1.6}
+.hsec b{color:var(--txt);font-weight:600}
+.hsec em{color:var(--acc);font-style:normal}
 
 /* ---------------- petits écrans ---------------- */
 @media (max-width:1280px){
-  .logo{display:none}
-  #saveState{display:none}
-  .speed button{min-width:34px;padding:5px 4px}
-  .ws button{padding:6px 7px}
+  .logo span{display:none}
+  #saveState{max-width:18vw}
+  .speed button{min-width:34px;padding:0 4px}
+  .ws button{padding:4px 8px}
+  #app{grid-template-columns:minmax(280px,320px) 1fr}
 }
 
 /* ---------------- écran scène (fenêtre de capture) ---------------- */
 body.scene-mode{background:#000}
-body.scene-mode::after{display:none}
 body.scene-mode #app{display:block;background:#000}
 body.scene-mode #app>*:not(#stage){display:none!important}
 body.scene-mode #stage{position:fixed;inset:0;background:#000}
@@ -453,9 +420,8 @@ body.scene-mode #stageWrap{box-shadow:none}
 body.scene-mode #glc{background:transparent}
 body.scene-mode #stageInfo,body.scene-mode #stageBadge,body.scene-mode #dropHint,
 body.scene-mode #tapHud,body.scene-mode #pausedNote{display:none!important}
-body.scene-mode #sceneWait{display:flex;position:fixed;inset:0;align-items:center;justify-content:center;flex-direction:column;
-  gap:10px;color:#7380ad;font-size:13px;text-align:center;letter-spacing:.08em;pointer-events:none}
-body.scene-mode #sceneWait b{color:var(--cy);font-size:16px;letter-spacing:.24em}
+body.scene-mode #sceneWait{display:flex;position:fixed;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--dim);font-size:14px;text-align:center;pointer-events:none}
+body.scene-mode #sceneWait b{color:var(--txt);font-size:17px;font-weight:600}
 body.scene-mode #sceneWait.hide{display:none}
 body.scene-mode #toast,body.scene-mode #helpBar{display:none}
 body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
@@ -466,61 +432,58 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
 
   <!-- ============== EN-TÊTE ============== -->
   <header id="hdr">
-    <div class="logo">KARAOKE&nbsp;FORGE</div>
-    <nav class="ws" id="wsNav">
-      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>PRÉPARER</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>.">1 PRÉPARER</button>
-      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>STYLE</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>.">2 STYLE</button>
-      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>LIVE</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>.">3 LIVE</button>
+    <div class="logo" title="Karaoke Forge"><i data-icon="mark"></i><span>Karaoke Forge</span></div>
+    <nav class="ws" id="wsNav" aria-label="Espaces de travail">
+      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>Préparer</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>."><b>1</b>Préparer</button>
+      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>Style</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>."><b>2</b>Style</button>
+      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>Live</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>."><b>3</b>Live</button>
     </nav>
     <div class="sep"></div>
-    <button id="bPlay" title="Lecture / pause — Espace" data-help="Lecture / pause. <em>Espace</em>, toujours.">▶</button>
-    <button id="bStop" title="Retour au début" data-help="Arrête et revient à 00:00.">■</button>
-    <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
-    <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    <div class="deck">
+      <button id="bPlay" class="icon" data-icon="play" aria-label="Lecture / pause" title="Lecture / pause — Espace" data-help="Lecture / pause. <em>Espace</em>, toujours."></button>
+      <button id="bStop" class="icon" data-icon="stop" aria-label="Retour au début" title="Retour au début" data-help="Arrête et revient à 00:00."></button>
+      <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
+      <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    </div>
     <div class="sep"></div>
     <div class="undo" id="undoBar">
-      <button id="bUndo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans PRÉPARER, réglages dans STYLE. <em>Ctrl+Z</em>.">↶</button>
-      <button id="bRedo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>.">↷</button>
+      <button id="bUndo" class="icon" data-icon="undo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans Préparer, réglages dans Style. <em>Ctrl+Z</em>."></button>
+      <button id="bRedo" class="icon" data-icon="redo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>."></button>
     </div>
     <div class="spacer"></div>
     <span id="saveState" data-help="Le morceau ouvert, et s'il est rangé dans la bibliothèque."></span>
-    <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque du navigateur. Il sera prêt dans <em>LIVE</em>. <em>Ctrl+S</em>.">ENREGISTRER</button>
-    <button id="bProj" data-help="Nouveau morceau, export et import de projet .kfj, timings .ass et .lrc, police.">⋯ FICHIER</button>
-    <button id="bHelp" title="Aide (F1)" data-help="Fiche complète : gestes souris, raccourcis, explication de chaque réglage.">?</button>
-    <button id="bExport" class="pri" data-help="Rendu image par image en MP4 (H.264 + audio) ou séquence PNG avec alpha. <em>Ctrl+E</em>.">⏺ EXPORTER</button>
+    <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque. Il sera prêt dans <em>Live</em>. <em>Ctrl+S</em>.">Enregistrer</button>
+    <button id="bProj" data-help="Nouveau morceau, export et import de projet .kfj, timings .ass et .lrc, police.">Fichier <i data-icon="chevron"></i></button>
+    <button id="bExport" class="pri" data-help="Rendu image par image en MP4 (H.264 + audio) ou séquence PNG avec alpha. <em>Ctrl+E</em>.">Exporter</button>
+    <button id="bHelp" class="icon" data-icon="help" aria-label="Aide" title="Aide (F1)" data-help="Fiche complète : gestes souris, raccourcis, explication de chaque réglage."></button>
   </header>
 
   <!-- ============== PRÉPARER : LE PARCOURS ============== -->
   <aside id="left" class="pane">
     <div class="body">
 
-      <!-- 1 · AUDIO -->
       <section class="step open active" id="st1">
-        <h3><span class="num"><i>1</i></span><span class="ttl">AUDIO</span><span class="sum" id="sum1"></span></h3>
+        <h3><span class="num"><i>1</i></span><span class="ttl">Audio</span><span class="sum" id="sum1"></span></h3>
         <div class="in">
           <label class="drop"><input type="file" id="fAudio" accept="audio/*">
-            <b>DÉPOSE TON AUDIO</b>mp3, wav, m4a, flac… ou clique ici</label>
+            <b>Dépose ton audio</b>mp3, wav, m4a, flac… ou clique ici</label>
           <div class="rowbtn"><button id="bUnloadAudio" hidden>Retirer l'audio</button></div>
-          <span class="more" data-box="box1" id="more1">depuis YouTube (companion)</span>
-          <div class="moreBox" id="box1"><div id="ytBox"></div></div>
-          <div class="hint">Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent sur une horloge.</div>
+          <details class="more" id="more1"><summary>Depuis YouTube (companion)</summary><div id="ytBox"></div></details>
+          <p class="hint">Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent sur une horloge.</p>
         </div>
       </section>
 
-      <!-- 2 · PAROLES -->
       <section class="step" id="st2">
-        <h3><span class="num"><i>2</i></span><span class="ttl">PAROLES</span><span class="sum" id="sum2"></span></h3>
+        <h3><span class="num"><i>2</i></span><span class="ttl">Paroles</span><span class="sum" id="sum2"></span></h3>
         <div class="in">
-          <div class="hint">Une ligne = une ligne à l'écran. Un tiret force une coupe : <b>ma-gni-fi-que</b>.</div>
+          <p class="hint">Une ligne = une ligne à l'écran. Un tiret force une coupe : <b>ma-gni-fi-que</b>.</p>
           <textarea id="lyricsText" spellcheck="false" placeholder="Colle tes paroles ici…&#10;&#10;Néon dans la nuit&#10;Je danse avec ton ombre"></textarea>
-          <div class="rowbtn"><button id="bBuild" class="pri">DÉCOUPER EN SYLLABES</button></div>
-          <span class="more" data-box="box2b" id="more2b">chercher les paroles en ligne</span>
-          <div class="moreBox" id="box2b">
-            <div class="hint">Base LRCLIB, gratuite. Les versions <b>synchronisées</b> arrivent avec le début de chaque ligne déjà posé.</div>
+          <div class="rowbtn"><button id="bBuild" class="pri">Découper en syllabes</button></div>
+          <details class="more" id="more2b"><summary>Chercher les paroles en ligne</summary>
+            <p class="hint">Base LRCLIB, gratuite. Les versions <b>synchronisées</b> arrivent avec le début de chaque ligne déjà posé.</p>
             <div id="lrcBox"></div>
-          </div>
-          <span class="more" data-box="box2" id="more2">options</span>
-          <div class="moreBox" id="box2">
+          </details>
+          <details class="more" id="more2"><summary>Options</summary>
             <div class="row wide"><label>Langue</label><select id="selLang">
               <option value="fr">Français</option><option value="en">Anglais</option>
               <option value="none">Ne pas découper</option>
@@ -528,67 +491,50 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
             <div class="rowbtn">
               <button id="bMerge" title="Redécouper en conservant les timings déjà posés">Redécouper sans perdre les timings</button>
             </div>
-            <div class="rowbtn">
-              <input type="file" id="fAss" accept=".ass,.ssa,.lrc,.txt" hidden>
-              <button id="bImport">Importer .ass / .lrc</button>
-            </div>
-          </div>
+            <p class="hint">Timings .ass ou .lrc existants : menu <b>Fichier → Importer</b>.</p>
+          </details>
         </div>
       </section>
 
-      <!-- 3 · CALAGE -->
       <section class="step" id="st3">
-        <h3><span class="num"><i>3</i></span><span class="ttl">CALAGE</span><span class="sum" id="sum3"></span></h3>
+        <h3><span class="num"><i>3</i></span><span class="ttl">Calage</span><span class="sum" id="sum3"></span></h3>
         <div class="in">
-          <button id="bTap" class="big hero" data-help="La lecture démarre un peu avant, puis tu frappes la touche de calage au début de chaque syllabe chantée. Ralentis la musique si ça va trop vite.">◈ CALER EN ÉCOUTANT</button>
-          <div class="hint" style="padding-top:8px">
-            Frappe <span class="kbd" id="tapKeyHint">F</span> au début de chaque syllabe.
-            <b>Tiens-la</b> sur la dernière syllabe d'une ligne pour garder la note à l'écran.
-            <span class="kbd">Retour</span> annule la dernière. <b>Ralentis</b> avec les boutons de vitesse en haut.
-          </div>
+          <button id="bTap" class="big hero" data-help="La lecture démarre un peu avant, puis tu frappes la touche de calage au début de chaque syllabe chantée. Ralentis la musique si ça va trop vite.">Caler en écoutant</button>
+          <p class="hint">Frappe <span class="kbd" id="tapKeyHint">F</span> au début de chaque syllabe, <b>tiens-la</b> sur la dernière d'une ligne. <span class="kbd">Retour</span> annule la dernière, les boutons de vitesse en haut ralentissent.</p>
           <div class="rowbtn">
             <button id="bTapFrom" title="Reprendre le calage à partir de la syllabe sélectionnée (clic sur une syllabe dans la timeline ou à l'étape 4)">Reprendre à la syllabe choisie</button>
+            <select id="tapKey" title="Touche de calage" style="flex:0 0 auto"></select>
           </div>
-          <div class="rowbtn">
-            <select id="tapKey" title="Touche de calage"></select>
-          </div>
-          <span class="more" data-box="box3" id="more3">autres méthodes</span>
-          <div class="moreBox" id="box3">
-            <div class="hint">Cale seulement le début et la fin d'une ligne — ou importe des paroles synchronisées — puis&nbsp;:</div>
-            <div class="rowbtn"><button id="bOnsetSnap" data-help="Analyse l'audio et pose les syllabes des lignes déjà bornées sur les vrais départs de notes. Entièrement local et instantané.">♫ Poser sur les attaques</button></div>
-            <div class="rowbtn"><button id="bDistrib" data-help="Répartit les syllabes régulièrement entre le début et la fin de la ligne, au prorata de leur longueur.">↔ Répartir régulièrement</button></div>
+          <details class="more" id="more3"><summary>Autres méthodes</summary>
+            <p class="hint">Cale seulement le début et la fin d'une ligne — ou importe des paroles synchronisées — puis&nbsp;:</p>
+            <div class="rowbtn"><button id="bOnsetSnap" data-help="Analyse l'audio et pose les syllabes des lignes déjà bornées sur les vrais départs de notes. Entièrement local et instantané.">Poser sur les attaques</button></div>
+            <div class="rowbtn"><button id="bDistrib" data-help="Répartit les syllabes régulièrement entre le début et la fin de la ligne, au prorata de leur longueur.">Répartir régulièrement</button></div>
             <div class="row wide" data-help="Si tes frappes tombent systématiquement en retard, mets ici ce retard en millisecondes : il sera retiré de chaque frappe. La latence de la carte son est déjà compensée."><label>Décalage frappe</label><input type="number" id="tapOffset" step="5" value="0" title="millisecondes"></div>
-          </div>
+          </details>
         </div>
       </section>
 
-      <!-- 4 · AJUSTER -->
       <section class="step" id="st4">
-        <h3><span class="num"><i>4</i></span><span class="ttl">AJUSTER</span><span class="sum" id="sum4"></span></h3>
+        <h3><span class="num"><i>4</i></span><span class="ttl">Ajuster</span><span class="sum" id="sum4"></span></h3>
         <div class="in">
-          <div class="rowbtn" style="margin-top:0">
-            <button id="bLoop" data-help="Rejoue la ligne sélectionnée en boucle : tu ajustes en écoutant le résultat tourner.">↻ BOUCLER LA LIGNE</button>
-            <button id="bSnapSyl" style="flex:0 0 auto" title="Aimanter la sélection sur l'attaque audio la plus proche" data-help="Décale les syllabes sélectionnées jusqu'au départ de note le plus proche détecté dans l'audio.">♫</button>
-          </div>
-          <div class="rowbtn">
-            <button id="bClearL" class="dgr" title="Le texte reste, seul le placement est effacé" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la syllabe choisie ».">✕ EFFACER LE CALAGE DE LA PHRASE</button>
-          </div>
-          <div class="hint">
-            Clic sur une syllabe pour t'y placer · <span class="kbd">Alt</span>+clic la coupe en deux<br>
-            <span class="kbd">Maj</span>+<span class="kbd">←</span><span class="kbd">→</span> décale de 10&nbsp;ms · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> annule
+          <p class="hint">Clic sur une syllabe pour t'y placer · <span class="kbd">Alt</span>+clic la coupe en deux · <span class="kbd">Maj</span>+<span class="kbd">←</span><span class="kbd">→</span> décale de 10&nbsp;ms · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> annule.</p>
+          <div class="sylHead">
+            <span id="sylWhich">—</span>
+            <button id="sylAll" class="tgl" title="Afficher toutes les lignes, pas seulement celle sélectionnée">Toutes les lignes</button>
           </div>
           <div id="sylList"></div>
+          <div class="rowbtn">
+            <button id="bClearL" class="dgr" title="Le texte reste, seul le placement est effacé" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la syllabe choisie ».">Effacer le calage de la phrase</button>
+          </div>
         </div>
       </section>
 
-      <!-- 5 · RANGER -->
       <section class="step" id="st5">
-        <h3><span class="num"><i>5</i></span><span class="ttl">RANGER</span><span class="sum" id="sum5"></span></h3>
+        <h3><span class="num"><i>5</i></span><span class="ttl">Ranger</span><span class="sum" id="sum5"></span></h3>
         <div class="in">
-          <div class="hint">Range le morceau — paroles, calage, style et audio — dans la bibliothèque du navigateur. Il sera prêt dans <b>3 LIVE</b>, même hors ligne.</div>
-          <div class="rowbtn"><button id="bSaveLib" class="big hero">ENREGISTRER DANS LA BIBLIOTHÈQUE</button></div>
-          <div class="rowbtn"><button id="bSaveAs">Enregistrer comme nouveau morceau…</button></div>
-          <div class="hint">Pour une copie en fichier : <b>⋯ FICHIER → Exporter le projet (.kfj)</b>.</div>
+          <p class="hint">Le morceau — paroles, calage, style et audio — part dans la bibliothèque. Il sera prêt dans <b>Live</b>, même hors ligne.</p>
+          <div class="rowbtn"><button id="bSaveLib" class="big hero">Enregistrer dans la bibliothèque</button></div>
+          <p class="hint"><a href="#" id="bSaveAs">Enregistrer comme nouveau morceau…</a> · copie en fichier : <b>Fichier → Exporter le projet</b>.</p>
         </div>
       </section>
 
@@ -601,63 +547,68 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
       <canvas id="glc"></canvas>
       <div id="stageInfo">—</div>
       <div id="stageBadge">—</div>
-      <div id="dropHint"><b>DÉPOSE UN FICHIER AUDIO</b><span>ou commence par les paroles, étape 2</span></div>
+      <div id="dropHint"><b>Dépose un fichier audio</b><span>ou commence par les paroles, étape 2</span></div>
       <div id="tapHud">
         <div class="tprog"><i id="tapBar"></i></div>
         <div class="tcount" id="tapCount">0 / 0</div>
         <div class="tprev" id="tapPrev"></div>
         <div class="tcur" id="tapCur">—</div>
         <div class="tnext" id="tapNext"></div>
-        <button class="tbtn" id="tapBtn">FRAPPE <b id="tapKeyBig">F</b></button>
+        <button class="tbtn" id="tapBtn">Frappe <b id="tapKeyBig">F</b></button>
         <div class="tfoot"><span class="kbd">Retour</span> annuler · <span class="kbd">Échap</span> sortir · vitesse <b id="tapRate">1×</b></div>
       </div>
-      <div id="pausedNote"><b>SORTIE SUR L'ÉCRAN SCÈNE</b><span>L'aperçu est en pause pour épargner le GPU.</span><button id="bPreviewOn">AFFICHER L'APERÇU ICI</button></div>
+      <div id="pausedNote"><b>Sortie sur l'écran scène</b><span>L'aperçu est en pause pour épargner le GPU.</span><button id="bPreviewOn">Afficher l'aperçu ici aussi</button></div>
     </div>
-    <div id="sceneWait"><b>ÉCRAN SCÈNE</b><span>En attente de la fenêtre de contrôle…<br>Double-clic ou F : plein écran</span></div>
+    <div id="sceneWait"><b>Écran scène</b><span>En attente de la fenêtre de contrôle…<br>Double-clic ou F : plein écran</span></div>
   </section>
 
   <!-- ============== STYLE ============== -->
   <aside id="right" class="pane">
     <div class="top">
-      <div class="lbl">AMBIANCES</div>
+      <div class="lbl">Ambiances</div>
       <div class="presets" id="presets"></div>
       <div class="modeRow">
-        <button id="mSimple" class="on" data-help="N'affiche que l'essentiel : une trentaine de réglages qui couvrent la majorité des besoins.">SIMPLE</button>
-        <button id="mExpert" data-help="Ouvre la centaine de réglages : physique des particules, post-traitement, mise en page fine.">EXPERT</button>
+        <button id="mSimple" class="on" data-help="N'affiche que l'essentiel : une trentaine de réglages qui couvrent la majorité des besoins.">Simple</button>
+        <button id="mExpert" data-help="Ouvre la centaine de réglages : physique des particules, post-traitement, mise en page fine.">Expert</button>
       </div>
     </div>
-    <div class="tabs" id="tabsR">
-      <button data-p="pgTxt" class="on">TEXTE</button>
-      <button data-p="pgFill">COULEUR</button>
-      <button data-p="pgPar">PARTICULES</button>
-      <button data-p="pgFx">DÉCOR</button>
-      <button data-p="tabBeat">RYTHME</button>
+    <div class="tabs" id="tabsR" role="tablist">
+      <button data-p="pgTxt" class="on">Texte</button>
+      <button data-p="pgFill">Couleur</button>
+      <button data-p="pgPar">Particules</button>
+      <button data-p="pgFx">Décor</button>
+      <button data-p="pgBeat">Rythme</button>
     </div>
     <div class="body">
       <div class="tabpage on" id="pgTxt"></div>
       <div class="tabpage" id="pgFill"></div>
       <div class="tabpage" id="pgPar"></div>
       <div class="tabpage" id="pgFx"></div>
-      <div class="tabpage" id="tabBeat"><div class="grp"><h3>TEMPO</h3><div class="grpin" id="beatTools"></div></div><div id="pgBeat"></div></div>
+      <div class="tabpage" id="pgBeat"></div>
     </div>
   </aside>
 
   <!-- ============== TIMELINE ============== -->
   <footer id="tl">
     <div id="tlHd">
-      <div class="tools">
-        <button id="tV" class="on" title="Sélection (V)" data-help="Outil <em>Sélection</em> — clic pour sélectionner, glisser le corps d'un bloc pour le déplacer, ses bords pour changer début et fin. Glisser dans le vide trace un lasso.">▣</button>
-        <button id="tC" title="Lame (C)" data-help="Outil <em>Lame</em> — clique sur une syllabe pour la couper en deux à l'endroit exact.">✂</button>
+      <div class="tools" role="group" aria-label="Outils">
+        <button id="tV" class="icon on" data-icon="select" aria-label="Sélection" title="Sélection (V)" data-help="Outil <em>Sélection</em> — clic pour sélectionner, glisser le corps d'un bloc pour le déplacer, ses bords pour changer début et fin. Glisser dans le vide trace un lasso."></button>
+        <button id="tC" class="icon" data-icon="razor" aria-label="Lame" title="Lame (C)" data-help="Outil <em>Lame</em> — clique sur une syllabe pour la couper en deux à l'endroit exact."></button>
       </div>
       <div class="sep"></div>
-      <button id="bZoomOut" title="Dézoomer (−)">−</button>
-      <button id="bZoomIn" title="Zoomer (+)">+</button>
-      <button id="bZoomFit" title="Voir tout le morceau (F)">VOIR TOUT</button>
+      <div class="tools" role="group" aria-label="Zoom">
+        <button id="bZoomOut" class="icon" data-icon="zoomOut" aria-label="Dézoomer" title="Dézoomer (−)"></button>
+        <button id="bZoomIn" class="icon" data-icon="zoomIn" aria-label="Zoomer" title="Zoomer (+)"></button>
+        <button id="bZoomFit" title="Voir tout le morceau (F)">Tout voir</button>
+      </div>
       <div class="sep"></div>
-      <button id="ckFollow" class="tgl on" title="La vue suit la lecture" data-help="La vue suit automatiquement la tête de lecture pendant le jeu.">SUIVRE</button>
-      <button id="ckSnap" class="tgl on" title="Aimantation (S)" data-help="Les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms. <em>Alt</em> désactive le temps d'un glissé.">AIMANT</button>
-      <button id="ckRipple" class="tgl" title="Décaler aussi tout ce qui suit (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">DÉCALER LA SUITE</button>
-      <button id="ckScrub" class="tgl on" title="Entendre le son pendant qu'on déplace la tête de lecture" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">♪ SON</button>
+      <button id="ckFollow" class="tgl on" title="La vue suit la lecture" data-help="La vue suit automatiquement la tête de lecture pendant le jeu. Si tu défiles toi-même pendant la lecture, le suivi se met en pause jusqu'au prochain déplacement de la tête.">Suivre</button>
+      <button id="ckSnap" class="tgl on" title="Aimantation (S)" data-help="Les bords collent à la tête de lecture, aux syllabes voisines, aux attaques détectées dans l'audio, puis à la grille 10 ms. <em>Alt</em> désactive le temps d'un glissé.">Aimant</button>
+      <button id="ckRipple" class="tgl" title="Décaler aussi tout ce qui suit (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">Décaler la suite</button>
+      <button id="ckScrub" class="tgl on" title="Entendre le son pendant qu'on déplace la tête de lecture" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">Son</button>
+      <div class="sep"></div>
+      <button id="bLoop" class="tgl" data-icon="loop" title="Boucler la ligne sélectionnée (B)" data-help="Rejoue la ligne sélectionnée en boucle : tu ajustes en écoutant le résultat tourner.">Boucle</button>
+      <button id="bSnapSyl" data-icon="magnet" title="Aimanter la sélection sur l'attaque audio la plus proche" data-help="Décale les syllabes sélectionnées jusqu'au départ de note le plus proche détecté dans l'audio.">Sur l'attaque</button>
       <div class="sep"></div>
       <span class="lbl" id="tlSel">—</span>
       <div class="spacer"></div>
@@ -671,100 +622,88 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
   <!-- ============== LIVE ============== -->
   <aside id="liveLeft" class="pane">
     <div class="body">
-      <div class="lvHead"><b>SET</b><span id="setCount"></span></div>
+      <div class="lvHead"><b>Set</b><span id="setCount"></span></div>
       <div id="setList" class="list"></div>
       <label class="chk" data-help="Coché : changer de morceau garde l'ambiance et le fond en cours — un look constant pour toute la soirée. Décoché : chaque morceau reprend son propre style."><input type="checkbox" id="lvKeepStyle" checked><i></i>Garder l'ambiance en cours entre les morceaux</label>
-      <details class="lvBox" open><summary>BIBLIOTHÈQUE <span id="libCount"></span></summary>
-        <input type="search" id="libFilter" placeholder="filtrer…">
+      <details class="lvBox" open><summary>Bibliothèque <span id="libCount"></span></summary>
+        <input type="search" id="libFilter" placeholder="Filtrer…" aria-label="Filtrer la bibliothèque">
         <div id="libList" class="list"></div>
       </details>
-      <details class="lvBox"><summary>CHERCHER DES PAROLES EN LIGNE</summary>
-        <div class="hint">Ajoute directement au set. Sans audio, le morceau se joue en <b>son extérieur</b>.</div>
+      <details class="lvBox"><summary>Chercher des paroles en ligne</summary>
+        <p class="hint">Ajoute directement au set. Sans audio, le morceau se joue en <b>son extérieur</b>.</p>
         <div id="lvLrc"></div>
       </details>
     </div>
   </aside>
 
   <section id="liveLines" class="pane">
-    <div class="lvHead"><b>PAROLES</b><span id="lvLineInfo"></span></div>
+    <div class="lvHead"><b>Paroles</b><span id="lvLineInfo"></span></div>
     <div id="lvLines" class="list"></div>
   </section>
 
   <aside id="liveRight" class="pane">
     <div class="body">
-      <div class="grp"><h3>SORTIE</h3><div class="grpin">
-        <button id="lvScene" class="big hero" data-help="Ouvre une fenêtre qui n'affiche que l'image. Glisse-la sur le second écran, double-clic pour le plein écran, puis capture-la dans Resolume ou OBS. <em>O</em>.">OUVRIR L'ÉCRAN SCÈNE ↗</button>
-        <div class="lvStatus"><span id="sceneState">○ écran scène fermé</span></div>
+      <div class="grp"><h3>Sortie</h3><div class="grpin">
+        <button id="lvScene" class="big hero" data-icon="scene" data-help="Ouvre une fenêtre qui n'affiche que l'image. Glisse-la sur le second écran, double-clic pour le plein écran, puis capture-la dans Resolume ou OBS. <em>O</em>.">Ouvrir l'écran scène</button>
+        <div class="lvStatus"><span id="sceneState">Écran scène fermé</span></div>
         <label class="chk"><input type="checkbox" id="lvPreview"><i></i>Garder l'aperçu ici aussi (plus de GPU)</label>
-        <div class="lbl2">FOND</div>
-        <div class="segRow" id="lvKey" data-help="<em>AMBIANCE</em> garde le décor du style. Les couleurs donnent un fond uni pour l'incrustation (chroma key) : grille, vignette, grain et aberration sont coupés, puis restaurés au retour. <em>K</em> bascule vert / ambiance.">
-          <button data-key="" class="on">AMBIANCE</button><button data-key="#00b140" class="kGreen">VERT</button><button data-key="#0047ff" class="kBlue">BLEU</button><button data-key="#000000" class="kBlack">NOIR</button>
+        <div class="lbl2">Fond</div>
+        <div class="segRow" id="lvKey" data-help="<em>Ambiance</em> garde le décor du style. Les couleurs donnent un fond uni pour l'incrustation (chroma key) : grille, vignette, grain et aberration sont coupés, puis restaurés au retour. <em>K</em> bascule vert / ambiance.">
+          <button data-key="" class="on">Ambiance</button><button data-key="#00b140" class="kGreen">Vert</button><button data-key="#0047ff" class="kBlue">Bleu</button><button data-key="#000000" class="kBlack">Noir</button>
         </div>
-        <div class="rowbtn"><button id="lvBlack" class="big" data-help="Masque les paroles d'un coup, le fond reste. <em>N</em>.">■ MASQUER LE TEXTE (N)</button></div>
+        <div class="rowbtn"><button id="lvBlack" class="big" data-help="Masque les paroles d'un coup, le fond reste. <em>N</em>.">Masquer le texte</button></div>
       </div></div>
 
-      <div class="grp"><h3>LECTURE</h3><div class="grpin">
-        <div class="segRow" id="lvSource" data-help="<em>AUDIO DU MORCEAU</em> : l'app joue le son rangé avec le morceau. <em>SON EXTÉRIEUR</em> : la musique vient d'ailleurs, les paroles se déroulent sur l'horloge et tu les recales à la main. <em>X</em>.">
-          <button data-src="audio" class="on">AUDIO DU MORCEAU</button><button data-src="ext">SON EXTÉRIEUR</button>
+      <div class="grp"><h3>Lecture</h3><div class="grpin">
+        <div class="segRow" id="lvSource" data-help="<em>Audio du morceau</em> : l'app joue le son rangé avec le morceau. <em>Son extérieur</em> : la musique vient d'ailleurs, les paroles se déroulent sur l'horloge et tu les recales à la main. <em>X</em>.">
+          <button data-src="audio" class="on">Audio du morceau</button><button data-src="ext">Son extérieur</button>
         </div>
         <div class="transport">
-          <button id="lvPrev" title="Début de ligne / ligne précédente (←)">⏮</button>
-          <button id="lvPlay" class="hero" title="Lecture / pause (Espace)">▶</button>
-          <button id="lvNext" title="Ligne suivante (→)">⏭</button>
+          <button id="lvPrev" class="icon" data-icon="prev" aria-label="Ligne précédente" title="Début de ligne / ligne précédente (←)"></button>
+          <button id="lvPlay" class="icon hero" data-icon="play" aria-label="Lecture / pause" title="Lecture / pause (Espace)"></button>
+          <button id="lvNext" class="icon" data-icon="next" aria-label="Ligne suivante" title="Ligne suivante (→)"></button>
         </div>
-        <div class="segRow" id="lvStep" data-help="<em>CONTINU</em> : les paroles défilent seules. <em>LIGNE PAR LIGNE</em> : chaque ligne se joue puis s'arrête, → lance la suivante. <em>L</em>.">
-          <button data-step="flow" class="on">CONTINU</button><button data-step="line">LIGNE PAR LIGNE</button>
+        <div class="segRow" id="lvStep" data-help="<em>Continu</em> : les paroles défilent seules. <em>Ligne par ligne</em> : chaque ligne se joue puis s'arrête, → lance la suivante. <em>L</em>.">
+          <button data-step="flow" class="on">Continu</button><button data-step="line">Ligne par ligne</button>
         </div>
-        <div class="lbl2">VITESSE</div>
+        <div class="lbl2">Vitesse</div>
         <div class="segRow tight" id="lvRate"></div>
-        <div class="lbl2">RECALER LES PAROLES</div>
+        <div class="lbl2">Recaler les paroles</div>
         <div class="segRow tight">
-          <button id="lvNudgeM" title="Paroles en retard de 100 ms (↓)">−0,1 s ↓</button>
-          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s ↑</button></div>
-        <div class="hint" id="lvHint"></div>
+          <button id="lvNudgeM" title="Paroles en retard de 100 ms (↓)">−0,1 s</button>
+          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s</button></div>
+        <p class="hint" id="lvHint"></p>
       </div></div>
 
-      <div class="grp"><h3>RYTHME</h3><div class="grpin">
+      <div class="grp"><h3>Rythme</h3><div class="grpin">
         <div id="lvBeat"></div>
         <label class="chk"><input type="checkbox" id="lvBeatOn"><i></i>Le texte et les particules réagissent au rythme (R)</label>
       </div></div>
 
-      <div class="grp fold"><h3>RACCOURCIS LIVE</h3><div class="grpin">
-        <table class="keys">
-          <tr><td><span class="kbd">Espace</span></td><td>lecture / pause</td></tr>
-          <tr><td><span class="kbd">←</span> <span class="kbd">→</span></td><td>ligne précédente / suivante</td></tr>
-          <tr><td><span class="kbd">↑</span> <span class="kbd">↓</span></td><td>paroles en avance / en retard de 100 ms</td></tr>
-          <tr><td><span class="kbd">1</span>…<span class="kbd">9</span></td><td>charger le morceau n° du set</td></tr>
-          <tr><td><span class="kbd">Entrée</span></td><td>morceau suivant du set (<span class="kbd">Maj</span> : précédent)</td></tr>
-          <tr><td><span class="kbd">T</span></td><td>tap tempo</td></tr>
-          <tr><td><span class="kbd">N</span></td><td>masquer / réafficher le texte</td></tr>
-          <tr><td><span class="kbd">K</span></td><td>fond vert / ambiance</td></tr>
-          <tr><td><span class="kbd">L</span> · <span class="kbd">X</span> · <span class="kbd">R</span></td><td>ligne par ligne · son extérieur · rythme</td></tr>
-          <tr><td><span class="kbd">O</span></td><td>ouvrir l'écran scène</td></tr>
-        </table>
-      </div></div>
+      <p class="hint center"><span class="kbd">F1</span> ou <span class="kbd">?</span> : tous les raccourcis du live.</p>
     </div>
   </aside>
 </div>
 
 <div id="toast"></div>
-<div id="ctx"></div>
-<div id="helpBar"><b>AIDE</b><span>Survole n'importe quel élément pour savoir ce qu'il fait.</span></div>
+<div id="ctx" role="menu"></div>
+<div id="helpBar"><b>Aide</b><span>Survole n'importe quel élément pour savoir ce qu'il fait.</span></div>
 <div id="helpPanel"><div id="helpBox">
   <header>
-    <h2>AIDE — KARAOKE FORGE</h2>
+    <h2>Aide</h2>
     <div class="spacer"></div>
-    <label class="chk" style="color:var(--cy)"><input type="checkbox" id="ckHelpMode"><i></i>MODE SURVOL</label>
-    <button id="bHelpClose">FERMER</button>
+    <label class="chk"><input type="checkbox" id="ckHelpMode"><i></i>Mode survol</label>
+    <button id="bHelpClose">Fermer</button>
   </header>
   <div id="helpBody"></div>
 </div></div>
-<div id="modal"><div id="modalBox">
-  <h2 id="modalTitle">EXPORT</h2>
+<div id="modal" role="dialog" aria-modal="true"><div id="modalBox">
+  <h2 id="modalTitle">Export</h2>
   <div id="modalBody"></div>
-  <div id="modalFoot"><button id="mCancel">ANNULER</button><button id="mOk" class="pri">OK</button></div>
+  <div id="modalFoot"><button id="mCancel">Annuler</button><button id="mOk" class="pri">OK</button></div>
 </div></div>
 
+<input type="file" id="fAss" accept=".ass,.ssa,.lrc,.txt" hidden>
 <input type="file" id="fFont" accept=".ttf,.otf,.woff,.woff2" hidden>
 <input type="file" id="fProj" accept=".kfj,.json" hidden>
 <script>/* mp4-muxer v5.2.2 — MIT (Vanilla) : muxage MP4 pour WebCodecs */
@@ -2747,16 +2686,16 @@ const FONTS = [
 
 const SCHEMA = {
   pgTxt: [
-    ['TYPOGRAPHIE', [
+    ['Typographie', [
       ['fontFamily', 'Police', 'sel', FONTS, FONTS[1][0]],
       ['fontWeight', 'Graisse', 'sel', [['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extrabold'], ['900', 'Black']], '900'],
       ['italic', 'Italique', 'chk', null, false],
       ['fontSize', 'Taille', 'rng', [2, 26, .1, '%H'], 9],
       ['letterSpacing', 'Interlettre', 'rng', [-.12, .5, .005, 'em'], .02],
       ['lineHeight', 'Interligne', 'rng', [.7, 3, .01, 'em'], 1.28],
-      ['uppercase', 'MAJUSCULES', 'chk', null, true]
+      ['uppercase', 'Majuscules', 'chk', null, true]
     ]],
-    ['MISE EN PAGE', [
+    ['Mise en page', [
       ['align', 'Alignement', 'sel', [['center', 'Centré'], ['left', 'Gauche'], ['right', 'Droite']], 'center'],
       ['posX', 'Position X', 'rng', [0, 100, .1, '%'], 50],
       ['posY', 'Position Y', 'rng', [0, 100, .1, '%'], 50],
@@ -2764,136 +2703,136 @@ const SCHEMA = {
       ['linesBefore', 'Lignes avant', 'rng', [0, 3, 1, ''], 1],
       ['linesAfter', 'Lignes après', 'rng', [0, 3, 1, ''], 1],
       ['lineLead', 'Anticipation', 'rng', [0, 3, .05, 's'], .8],
-      ['inactAlpha', 'Opacité inact.', 'rng', [0, 1, .01, ''], .3],
-      ['inactScale', 'Échelle inact.', 'rng', [.4, 1.2, .01, '×'], .82],
+      ['inactAlpha', 'Opacité inactive', 'rng', [0, 1, .01, ''], .3],
+      ['inactScale', 'Échelle inactive', 'rng', [.4, 1.2, .01, '×'], .82],
       ['actScale', 'Échelle active', 'rng', [.5, 1.6, .01, '×'], 1]
     ]],
-    ['TEXTE NON REMPLI', [
+    ['Texte avant remplissage', [
       ['baseColor', 'Couleur', 'col', null, '#2b3a6b'],
       ['baseAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .85],
       ['strokeW', 'Contour', 'rng', [0, 14, .1, 'px'], 0],
-      ['strokeColor', 'Coul. contour', 'col', null, '#31f6ff'],
+      ['strokeColor', 'Couleur du contour', 'col', null, '#31f6ff', () => P.strokeW > 0],
       ['shadowOn', 'Ombre portée', 'chk', null, false],
-      ['shadowColor', 'Coul. ombre', 'col', null, '#000000'],
-      ['shadowBlur', 'Flou ombre', 'rng', [0, 60, .5, 'px'], 14],
-      ['shadowY', 'Décalage Y', 'rng', [-40, 40, .5, 'px'], 6]
+      ['shadowColor', 'Couleur de l\'ombre', 'col', null, '#000000', () => P.shadowOn],
+      ['shadowBlur', 'Flou de l\'ombre', 'rng', [0, 60, .5, 'px'], 14, () => P.shadowOn],
+      ['shadowY', 'Décalage vertical', 'rng', [-40, 40, .5, 'px'], 6, () => P.shadowOn]
     ]]
   ],
 
   pgFill: [
-    ['REMPLISSAGE', [
-      ['fillMode', 'Mode', 'sel', [['solid', 'Uni'], ['linear', 'Dégradé 2'], ['tri', 'Dégradé 3'], ['chrome', 'Chrome Y2K'], ['holo', 'Holographique'], ['hue', 'Hue cyclique']], 'chrome'],
+    ['Remplissage', [
+      ['fillMode', 'Mode', 'sel', [['solid', 'Uni'], ['linear', 'Dégradé 2'], ['tri', 'Dégradé 3'], ['chrome', 'Chrome Y2K'], ['holo', 'Holographique'], ['hue', 'Teinte tournante']], 'chrome'],
       ['fillC1', 'Couleur 1', 'col', null, '#ffffff'],
-      ['fillC2', 'Couleur 2', 'col', null, '#31f6ff'],
-      ['fillC3', 'Couleur 3', 'col', null, '#ff2fd0'],
-      ['fillAngle', 'Angle', 'rng', [0, 360, 1, '°'], 90],
-      ['fillScale', 'Échelle', 'rng', [.1, 4, .01, '×'], 1],
-      ['fillSpeed', 'Animation', 'rng', [-3, 3, .01, ''], .35]
+      ['fillC2', 'Couleur 2', 'col', null, '#31f6ff', () => P.fillMode !== 'solid'],
+      ['fillC3', 'Couleur 3', 'col', null, '#ff2fd0', () => ['tri', 'chrome', 'holo'].includes(P.fillMode)],
+      ['fillAngle', 'Angle', 'rng', [0, 360, 1, '°'], 90, () => P.fillMode !== 'solid'],
+      ['fillScale', 'Échelle', 'rng', [.1, 4, .01, '×'], 1, () => P.fillMode !== 'solid'],
+      ['fillSpeed', 'Animation', 'rng', [-3, 3, .01, ''], .35, () => P.fillMode !== 'solid']
     ]],
-    ['PROGRESSION', [
-      ['fillEase', 'Courbe', 'sel', [['linear', 'Linéaire'], ['out', 'Ease out'], ['in', 'Ease in'], ['inout', 'Ease in-out'], ['step', 'Instantané']], 'linear'],
+    ['Progression', [
+      ['fillEase', 'Courbe', 'sel', [['linear', 'Linéaire'], ['out', 'Décélérée'], ['in', 'Accélérée'], ['inout', 'Douce aux deux bouts'], ['step', 'Instantané']], 'linear'],
       ['fillLead', 'Avance', 'rng', [-300, 300, 1, 'ms'], 0],
       ['fillSoft', 'Bord doux', 'rng', [0, 80, .5, 'px'], 10]
     ]],
-    ['ACCENT SYLLABE', [
-      ['popAmt', 'Pop échelle', 'rng', [0, .6, .005, ''], .06],
-      ['popDur', 'Pop durée', 'rng', [40, 800, 5, 'ms'], 180],
-      ['glowAmt', 'Glow texte', 'rng', [0, 3, .01, ''], 1.1],
-      ['glowColor', 'Coul. glow', 'col', null, '#31f6ff'],
+    ['Accent de syllabe', [
+      ['popAmt', 'Grossissement', 'rng', [0, .6, .005, ''], .06],
+      ['popDur', 'Durée du grossissement', 'rng', [40, 800, 5, 'ms'], 180, () => P.popAmt > 0],
+      ['glowAmt', 'Halo du texte', 'rng', [0, 3, .01, ''], 1.1],
+      ['glowColor', 'Couleur du halo', 'col', null, '#31f6ff', () => P.glowAmt > 0],
       ['fillStroke', 'Contour rempli', 'chk', null, true],
-      ['fillStrokeC', 'Coul.', 'col', null, '#ff2fd0'],
-      ['fillStrokeW', 'Épaisseur', 'rng', [0, 14, .1, 'px'], 2.5]
+      ['fillStrokeC', 'Couleur du contour', 'col', null, '#ff2fd0', () => P.fillStroke],
+      ['fillStrokeW', 'Épaisseur du contour', 'rng', [0, 14, .1, 'px'], 2.5, () => P.fillStroke]
     ]]
   ],
 
   pgPar: [
-    ['ÉMETTEUR', [
+    ['Émetteur', [
       ['parOn', 'Activer', 'chk', null, true],
-      ['parType', 'Type', 'sel', [['spark', 'Étincelles'], ['dust', 'Poussière'], ['pixel', 'Pixels Y2K'], ['bubble', 'Bulles Aero'], ['shard', 'Éclats'], ['star', 'Étoiles'], ['streak', 'Traînées'], ['petal', 'Pétales'], ['note', 'Notes ♪'], ['confetti', 'Confettis'], ['heart', 'Cœurs']], 'spark'],
-      ['parRate', 'Débit', 'rng', [0, 4000, 5, '/s'], 700],
-      ['parBurst', 'Burst syllabe', 'rng', [0, 400, 1, ''], 26],
-      ['parBand', 'Bande d\'émission', 'rng', [1, 160, .5, 'px'], 22],
-      ['parEmitFull', 'Toute la surface', 'chk', null, false],
-      ['parMax', 'Max particules', 'rng', [200, 40000, 100, ''], 9000]
+      ['parType', 'Type', 'sel', [['spark', 'Étincelles'], ['dust', 'Poussière'], ['pixel', 'Pixels Y2K'], ['bubble', 'Bulles Aero'], ['shard', 'Éclats'], ['star', 'Étoiles'], ['streak', 'Traînées'], ['petal', 'Pétales'], ['note', 'Notes ♪'], ['confetti', 'Confettis'], ['heart', 'Cœurs']], 'spark', () => P.parOn],
+      ['parRate', 'Débit', 'rng', [0, 4000, 5, '/s'], 700, () => P.parOn],
+      ['parBurst', 'Bouffée par syllabe', 'rng', [0, 400, 1, ''], 26, () => P.parOn],
+      ['parBand', 'Bande d\'émission', 'rng', [1, 160, .5, 'px'], 22, () => P.parOn],
+      ['parEmitFull', 'Toute la surface', 'chk', null, false, () => P.parOn],
+      ['parMax', 'Max particules', 'rng', [200, 40000, 100, ''], 9000, () => P.parOn]
     ]],
-    ['PHYSIQUE', [
-      ['parSpeed', 'Vitesse', 'rng', [0, 2200, 5, 'px/s'], 340],
-      ['parSpeedRnd', 'Aléa vitesse', 'rng', [0, 1, .01, ''], .65],
-      ['parDir', 'Direction', 'rng', [-180, 180, 1, '°'], -90],
-      ['parSpread', 'Dispersion', 'rng', [0, 360, 1, '°'], 150],
-      ['parGravity', 'Gravité', 'rng', [-3000, 3000, 5, ''], -180],
-      ['parDrag', 'Friction', 'rng', [0, 8, .01, ''], 1.6],
-      ['parTurb', 'Turbulence', 'rng', [0, 2000, 5, ''], 220],
-      ['parTurbScale', 'Éch. turbul.', 'rng', [.2, 12, .05, ''], 2.4]
+    ['Physique', [
+      ['parSpeed', 'Vitesse', 'rng', [0, 2200, 5, 'px/s'], 340, () => P.parOn],
+      ['parSpeedRnd', 'Aléa vitesse', 'rng', [0, 1, .01, ''], .65, () => P.parOn],
+      ['parDir', 'Direction', 'rng', [-180, 180, 1, '°'], -90, () => P.parOn],
+      ['parSpread', 'Dispersion', 'rng', [0, 360, 1, '°'], 150, () => P.parOn],
+      ['parGravity', 'Gravité', 'rng', [-3000, 3000, 5, ''], -180, () => P.parOn],
+      ['parDrag', 'Friction', 'rng', [0, 8, .01, ''], 1.6, () => P.parOn],
+      ['parTurb', 'Turbulence', 'rng', [0, 2000, 5, ''], 220, () => P.parOn],
+      ['parTurbScale', 'Échelle turbulence', 'rng', [.2, 12, .05, ''], 2.4, () => P.parOn]
     ]],
-    ['ASPECT', [
-      ['parSize', 'Taille', 'rng', [.5, 80, .1, 'px'], 5],
-      ['parSizeRnd', 'Aléa taille', 'rng', [0, 1, .01, ''], .6],
-      ['parGrow', 'Croissance', 'rng', [-1, 3, .01, ''], -.75],
-      ['parLife', 'Durée de vie', 'rng', [.05, 8, .01, 's'], 1.1],
-      ['parLifeRnd', 'Aléa durée', 'rng', [0, 1, .01, ''], .5],
-      ['parSpin', 'Rotation', 'rng', [0, 25, .05, ''], 4],
-      ['parStretch', 'Étirement', 'rng', [0, 6, .01, ''], 1.2],
-      ['parColorMode', 'Couleur', 'sel', [['fill', 'Hérite du fill'], ['c1', 'Uni'], ['grad', 'Dégradé 1→2'], ['rand', 'Aléatoire 1/2']], 'fill'],
-      ['parC1', 'Couleur 1', 'col', null, '#ffffff'],
-      ['parC2', 'Couleur 2', 'col', null, '#ff2fd0'],
-      ['parAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .9],
-      ['parFadeIn', 'Fondu entrée', 'rng', [0, .6, .005, 's'], .04],
-      ['parBlend', 'Fusion', 'sel', [['add', 'Additif'], ['normal', 'Normal']], 'add'],
-      ['parSeed', 'Graine', 'rng', [1, 9999, 1, ''], 1337]
+    ['Aspect', [
+      ['parSize', 'Taille', 'rng', [.5, 80, .1, 'px'], 5, () => P.parOn],
+      ['parSizeRnd', 'Aléa taille', 'rng', [0, 1, .01, ''], .6, () => P.parOn],
+      ['parGrow', 'Croissance', 'rng', [-1, 3, .01, ''], -.75, () => P.parOn],
+      ['parLife', 'Durée de vie', 'rng', [.05, 8, .01, 's'], 1.1, () => P.parOn],
+      ['parLifeRnd', 'Aléa durée', 'rng', [0, 1, .01, ''], .5, () => P.parOn],
+      ['parSpin', 'Rotation', 'rng', [0, 25, .05, ''], 4, () => P.parOn],
+      ['parStretch', 'Étirement', 'rng', [0, 6, .01, ''], 1.2, () => P.parOn],
+      ['parColorMode', 'Couleur', 'sel', [['fill', 'Couleur du remplissage'], ['c1', 'Uni'], ['grad', 'Dégradé 1→2'], ['rand', 'Aléatoire 1/2']], 'fill', () => P.parOn],
+      ['parC1', 'Couleur 1', 'col', null, '#ffffff', () => P.parOn && P.parColorMode !== 'fill'],
+      ['parC2', 'Couleur 2', 'col', null, '#ff2fd0', () => P.parOn && (P.parColorMode === 'grad' || P.parColorMode === 'rand')],
+      ['parAlpha', 'Opacité', 'rng', [0, 1, .01, ''], .9, () => P.parOn],
+      ['parFadeIn', 'Fondu entrée', 'rng', [0, .6, .005, 's'], .04, () => P.parOn],
+      ['parBlend', 'Fusion', 'sel', [['add', 'Additif'], ['normal', 'Normal']], 'add', () => P.parOn],
+      ['parSeed', 'Graine', 'rng', [1, 9999, 1, ''], 1337, () => P.parOn]
     ]]
   ],
 
   pgFx: [
-    ['FOND', [
+    ['Fond', [
       ['bgMode', 'Type', 'sel', [['solid', 'Uni'], ['grad', 'Dégradé'], ['alpha', 'Transparent (alpha)']], 'grad'],
-      ['bgC1', 'Couleur 1', 'col', null, '#05030f'],
-      ['bgC2', 'Couleur 2', 'col', null, '#1b0430'],
-      ['bgAngle', 'Angle', 'rng', [0, 360, 1, '°'], 160],
+      ['bgC1', 'Couleur 1', 'col', null, '#05030f', () => P.bgMode !== 'alpha'],
+      ['bgC2', 'Couleur 2', 'col', null, '#1b0430', () => P.bgMode === 'grad'],
+      ['bgAngle', 'Angle', 'rng', [0, 360, 1, '°'], 160, () => P.bgMode === 'grad'],
       ['gridOn', 'Grille rétro', 'chk', null, true],
-      ['gridColor', 'Coul. grille', 'col', null, '#ff2fd0'],
-      ['gridAlpha', 'Opacité grille', 'rng', [0, 1, .01, ''], .22],
-      ['gridSize', 'Densité', 'rng', [2, 60, .5, ''], 16],
-      ['gridSpeed', 'Défilement', 'rng', [-3, 3, .01, ''], .35],
-      ['gridHorizon', 'Horizon', 'rng', [.2, 1, .005, ''], .62]
+      ['gridColor', 'Couleur de la grille', 'col', null, '#ff2fd0', () => P.gridOn],
+      ['gridAlpha', 'Opacité grille', 'rng', [0, 1, .01, ''], .22, () => P.gridOn],
+      ['gridSize', 'Densité', 'rng', [2, 60, .5, ''], 16, () => P.gridOn],
+      ['gridSpeed', 'Défilement', 'rng', [-3, 3, .01, ''], .35, () => P.gridOn],
+      ['gridHorizon', 'Horizon', 'rng', [.2, 1, .005, ''], .62, () => P.gridOn]
     ]],
-    ['BLOOM', [
+    ['Bloom', [
       ['bloomOn', 'Activer', 'chk', null, true],
-      ['bloomThr', 'Seuil', 'rng', [0, 1.2, .01, ''], .45],
-      ['bloomInt', 'Intensité', 'rng', [0, 3, .01, ''], .95],
-      ['bloomRad', 'Rayon', 'rng', [.4, 5, .05, ''], 1.6]
+      ['bloomThr', 'Seuil', 'rng', [0, 1.2, .01, ''], .45, () => P.bloomOn],
+      ['bloomInt', 'Intensité', 'rng', [0, 3, .01, ''], .95, () => P.bloomOn],
+      ['bloomRad', 'Rayon', 'rng', [.4, 5, .05, ''], 1.6, () => P.bloomOn]
     ]],
-    ['POST — CYBERCORE', [
+    ['Post-traitement', [
       ['chroma', 'Aberration', 'rng', [0, 30, .1, 'px'], 3.2],
-      ['chromaWarp', 'Aberr. radiale', 'rng', [0, 1, .01, ''], .7],
-      ['scanAmt', 'Scanlines', 'rng', [0, 1, .01, ''], .16],
-      ['scanCount', 'Lignes', 'rng', [80, 2000, 10, ''], 900],
-      ['scanRoll', 'Roll', 'rng', [-2, 2, .01, ''], .12],
+      ['chromaWarp', 'Aberration radiale', 'rng', [0, 1, .01, ''], .7, () => P.chroma > 0],
+      ['scanAmt', 'Lignes de balayage', 'rng', [0, 1, .01, ''], .16],
+      ['scanCount', 'Nombre de lignes', 'rng', [80, 2000, 10, ''], 900, () => P.scanAmt > 0],
+      ['scanRoll', 'Défilement des lignes', 'rng', [-2, 2, .01, ''], .12, () => P.scanAmt > 0],
       ['grain', 'Grain', 'rng', [0, .7, .005, ''], .06],
       ['vign', 'Vignette', 'rng', [0, 2, .01, ''], .5],
       ['contrast', 'Contraste', 'rng', [.4, 2.2, .01, '×'], 1.06],
       ['sat', 'Saturation', 'rng', [0, 2.2, .01, '×'], 1.1],
       ['glitchAmt', 'Glitch', 'rng', [0, 1, .01, ''], 0],
-      ['glitchRate', 'Fréq. glitch', 'rng', [.1, 12, .1, 'Hz'], 2.4]
+      ['glitchRate', 'Fréquence du glitch', 'rng', [.1, 12, .1, 'Hz'], 2.4, () => P.glitchAmt > 0]
     ]],
-    ['RENDU', [
+    ['Rendu', [
       ['resPreset', 'Résolution', 'sel', [['1920x1080', '1920×1080 · 16:9'], ['1080x1920', '1080×1920 · 9:16'], ['1080x1080', '1080×1080 · 1:1'], ['1280x720', '1280×720 · HD'], ['2560x1440', '2560×1440 · QHD'], ['3840x2160', '3840×2160 · 4K']], '1920x1080'],
       ['previewScale', 'Qualité aperçu', 'sel', [['0.5', '50 % (rapide)'], ['0.75', '75 %'], ['1', '100 % (exact)']], '0.75']
     ]]
   ],
 
   pgBeat: [
-    ['TEMPO', [
+    ['Tempo', [
       ['beatOn', 'Réagir au rythme', 'chk', null, false],
       ['bpm', 'BPM', 'rng', [40, 240, .1, ''], 120],
       ['beatOffset', 'Calage du temps', 'rng', [-1500, 1500, 1, 'ms'], 0]
     ]],
-    ['RÉACTIONS', [
-      ['beatScale', 'Pulsation texte', 'rng', [0, .3, .005, ''], .05],
-      ['beatGlow', 'Éclat du glow', 'rng', [0, 3, .01, ''], .8],
-      ['beatBloom', 'Éclat du bloom', 'rng', [0, 2, .01, ''], .5],
-      ['beatBurst', 'Rafale particules', 'rng', [0, 400, 1, ''], 0],
-      ['beatDecay', 'Sécheresse', 'rng', [1, 14, .1, ''], 5]
+    ['Réactions au temps', [
+      ['beatScale', 'Pulsation texte', 'rng', [0, .3, .005, ''], .05, () => P.beatOn],
+      ['beatGlow', 'Éclat du halo', 'rng', [0, 3, .01, ''], .8, () => P.beatOn],
+      ['beatBloom', 'Éclat du bloom', 'rng', [0, 2, .01, ''], .5, () => P.beatOn],
+      ['beatBurst', 'Rafale particules', 'rng', [0, 400, 1, ''], 0, () => P.beatOn],
+      ['beatDecay', 'Sécheresse', 'rng', [1, 14, .1, ''], 5, () => P.beatOn]
     ]]
   ]
 };
@@ -2903,9 +2842,9 @@ const SCHEMA = {
   for (const page in SCHEMA)
     for (const [, items] of SCHEMA[page])
       for (const it of items) {
-        const [k, label, type, opt, def] = it;
+        const [k, label, type, opt, def, when] = it;
         P[k] = def;
-        PMETA[k] = { label, type, opt, def, page };
+        PMETA[k] = { label, type, opt, def, page, when };
       }
 })();
 
@@ -3527,17 +3466,42 @@ function sortLines() {
 function buildPanels() {
   const simple = S.uiMode === 'simple';
   for (const page in SCHEMA) {
-    const host = $('#' + page); host.innerHTML = '';
+    const host = $('#' + page); if (!host) continue;
+    host.innerHTML = '';
     for (const [title, items] of SCHEMA[page]) {
       const keep = items.filter(it => !simple || SIMPLE.has(it[0]));
-      if (!keep.length) continue;                       // groupe vide : on l'omet
+      if (!keep.length && !(page === 'pgBeat' && title === 'Tempo')) continue;   // groupe vide : on l'omet
       const g = document.createElement('div'); g.className = 'grp';
       const h = document.createElement('h3'); h.textContent = title;
       h.onclick = () => g.classList.toggle('fold');
       const inn = document.createElement('div'); inn.className = 'grpin';
-      for (const [k, label, type, opt] of keep) inn.appendChild(makeControl(k, label, type, opt));
+      if (page === 'pgBeat' && title === 'Tempo') {
+        // les outils de tempo (tap, détection, Link) vivent dans ce groupe, une seule fois
+        const bt = document.createElement('div'); bt.id = 'beatTools'; inn.appendChild(bt);
+        if (typeof mountBeatTools === 'function') mountBeatTools(bt);
+      }
+      for (const [k, label, type, opt] of keep) { const row = makeControl(k, label, type, opt); PMETA[k].row = row; inn.appendChild(row); }
       g.appendChild(h); g.appendChild(inn); host.appendChild(g);
     }
+  }
+  refreshVisibility();
+}
+
+/** Les réglages qui n'ont pas de sens dans l'état courant se cachent
+    (couleur 2 d'un fond uni, flou d'une ombre désactivée…). */
+function refreshVisibility() {
+  const groups = new Set();
+  for (const k in PMETA) {
+    const m = PMETA[k]; if (!m.row) continue;
+    const hide = m.when ? !m.when() : false;
+    if (m.row.hidden !== hide) m.row.hidden = hide;
+    groups.add(m.row.parentElement);
+  }
+  for (const inn of groups) {
+    if (!inn) continue;
+    const g = inn.parentElement;
+    const visible = [...inn.children].some(el => !el.hidden);
+    if (g && g.classList.contains('grp')) g.hidden = !visible;
   }
 }
 
@@ -3545,8 +3509,11 @@ function setUiMode(m) {
   S.uiMode = m;
   $('#mSimple').classList.toggle('on', m === 'simple');
   $('#mExpert').classList.toggle('on', m === 'expert');
-  for (const k in PMETA) PMETA[k].el = null;
+  document.body.classList.toggle('ui-expert', m === 'expert');
+  for (const k in PMETA) { PMETA[k].el = null; PMETA[k].row = null; }
   buildPanels();
+  if (typeof UiPrefs !== 'undefined') UiPrefs.set({ mode: m });
+  if (typeof Live !== 'undefined' && Live.beatChanged) Live.beatChanged();
 }
 
 function applyPreset(name) {
@@ -3624,6 +3591,7 @@ function setParam(k, val) {
   if (k === 'resPreset' || k === 'previewScale') resizeStage();
   if (k === 'parMax') Particles.resize(P.parMax);
   if (k === 'parSeed') Particles.reset();
+  refreshVisibility();
   requestRender();
   Doc.touch(); docChanged();
 }
@@ -3635,6 +3603,7 @@ function syncPanels() {
     else m.el.value = P[k];
     if (m.show) m.show();
   }
+  refreshVisibility();
 }
 /* ============================================================================
    KARAOKE FORGE — petits outils d'interface
@@ -3693,6 +3662,49 @@ function bindFocusHygiene() {
   }, 0), true);
   addEventListener('change', e => { if (e.target.matches && e.target.matches(SEL)) e.target.blur(); }, true);
 }
+
+/* ------------------------------------------------------------- icônes --- */
+/* Un seul jeu de pictos, trait fin, hérite de la couleur du texte. */
+const ICONS = {
+  mark: '<path d="M5 3l12 7-12 7z"/><rect x="18" y="4" width="2.5" height="12" rx="1"/>',
+  play: '<path d="M7 4.5v15l12-7.5z"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
+  prev: '<path d="M18 5v14L8 12z"/><rect x="5" y="5" width="2" height="14" rx="1"/>',
+  next: '<path d="M6 5v14l10-7z"/><rect x="17" y="5" width="2" height="14" rx="1"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7"/><path d="M12 17h.01"/>',
+  select: '<path d="M5 4l14 8-6 1.5L10 20z"/>',
+  razor: '<path d="M4 20 20 4"/><path d="M4 20l4-1 1-4"/><path d="M14 10l4 4"/>',
+  zoomIn: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M11 8v6M8 11h6"/>',
+  zoomOut: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/>',
+  loop: '<path d="M17 4l3 3-3 3"/><path d="M4 11V9a2 2 0 0 1 2-2h14"/><path d="M7 20l-3-3 3-3"/><path d="M20 13v2a2 2 0 0 1-2 2H4"/>',
+  magnet: '<path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M6 4h4v7a2 2 0 0 0 4 0V4h4"/><path d="M6 8h4M14 8h4"/>',
+  scene: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>'
+};
+const ICON_FILLED = new Set(['mark', 'play', 'pause', 'stop', 'prev', 'next']);
+function icon(name) {
+  const d = ICONS[name]; if (!d) return '';
+  return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"${ICON_FILLED.has(name) ? ' style="fill:currentColor;stroke:none"' : ''}>${d}</svg>`;
+}
+/** Pose le picto de chaque élément porteur de data-icon, devant son libellé. */
+function applyIcons(root) {
+  for (const el of $$('[data-icon]', root)) {
+    if (el.querySelector('svg.ic')) continue;
+    el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
+  }
+}
+
+/* ------------------------------------------------- préférences d'interface --- */
+/* Ce qui ne concerne que l'écran (mode Simple/Expert, onglet ouvert, mode
+   survol) : mémorisé dans le navigateur, jamais dans le morceau.           */
+const UiPrefs = {
+  KEY: 'kf.ui', cache: null,
+  get() { if (!this.cache) { try { this.cache = JSON.parse(localStorage.getItem(this.KEY)) || {}; } catch (e) { this.cache = {}; } } return this.cache; },
+  set(patch) { Object.assign(this.get(), patch); try { localStorage.setItem(this.KEY, JSON.stringify(this.cache)); } catch (e) { } }
+};
 /* ============================================================================
    KARAOKE FORGE — render : layout, text, glyph mask, particles, WebGL post
    ============================================================================ */
@@ -4682,7 +4694,7 @@ function clearHold() {
 }
 function setPlaying(on) {
   S.playing = on;
-  $('#bPlay').textContent = on ? '❚❚' : '▶';
+  $('#bPlay').innerHTML = icon(on ? 'pause' : 'play');
   document.body.classList.toggle('playing', on);
   if (typeof Live !== 'undefined') Live.transportChanged();
   Scene.sendClock();
@@ -5775,9 +5787,9 @@ async function clearAllTimings() {
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (!timed) { toast('Aucun timing à effacer'); return; }
   const ok = await modal({
-    title: 'EFFACER TOUS LES TIMINGS ?',
+    title: 'Effacer tous les timings ?',
     body: `<div class="hint big">Les <b>${timed} syllabes calées</b> quittent la timeline. Le texte reste. <b>Ctrl+Z</b> pour revenir.</div>`,
-    ok: 'EFFACER'
+    ok: 'Effacer'
   });
   if (!ok) return;
   Undo.snap('effacer tous les timings');
@@ -5867,7 +5879,7 @@ function ctxMenuSyl(x, y, h) {
   const L = S.lines[h.li];
   const many = n > 1;
   showCtx(x, y, [
-    { hd: many ? `${n} SYLLABES` : `SYLLABE « ${L.syls[h.si].t.trim()} »` },
+    { hd: many ? `${n} syllabes` : `Syllabe « ${L.syls[h.si].t.trim()} »` },
     { label: 'Effacer le timing', key: 'Suppr', fn: clearTimingSelection },
     { label: many ? 'Supprimer les syllabes' : 'Supprimer la syllabe', key: 'Maj+Suppr', cls: 'dgr', fn: deleteSelection },
     { sep: 1 },
@@ -5881,14 +5893,14 @@ function ctxMenuSyl(x, y, h) {
     { sep: 1 },
     { label: 'Sélectionner toute la ligne', key: 'Ctrl+A', fn: () => { selLine(h.li); renderSylList(); TL.invalidate(); } },
     { label: 'Répartir la ligne', fn: () => distributeLine(h.li) },
-    { label: 'Supprimer la phrase de la timeline', cls: 'dgr', fn: () => clearLine(h.li) }
+    { label: 'Effacer le calage de la phrase', cls: 'dgr', fn: () => clearLine(h.li) }
   ]);
 }
 
 function ctxMenuLine(x, y, li) {
   const L = S.lines[li];
   showCtx(x, y, [
-    { hd: `LIGNE ${li + 1}` },
+    { hd: `Ligne ${li + 1}` },
     { label: 'Lire cette ligne', fn: () => { const sp = lineSpan(L); if (sp) { seek(Math.max(0, sp[0] - .4)); play(); } } },
     { label: 'Boucler cette ligne', key: 'B', fn: () => { selLine(li); if (S.loop) toggleLoop(); toggleLoop(); } },
     { label: 'Sélectionner ses syllabes', fn: () => { selLine(li); renderSylList(); TL.invalidate(); } },
@@ -5896,21 +5908,21 @@ function ctxMenuLine(x, y, li) {
     { sep: 1 },
     { label: 'Poser sur les attaques', fn: () => runOnsetAlign([li]) },
     { label: 'Répartir sur la durée', fn: () => distributeLine(li) },
-    { label: 'Supprimer la phrase de la timeline', cls: 'dgr', fn: () => clearLine(li) },
-    { label: 'Supprimer la phrase ET son texte', cls: 'dgr', fn: () => { selLine(li); deleteSelection(); } }
+    { label: 'Effacer le calage de la phrase', cls: 'dgr', fn: () => clearLine(li) },
+    { label: 'Supprimer la phrase et son texte', cls: 'dgr', fn: () => { selLine(li); deleteSelection(); } }
   ]);
 }
 
 function ctxMenuEmpty(x, y, t) {
   showCtx(x, y, [
-    { hd: 'TIMELINE' },
+    { hd: 'Timeline' },
     { label: 'Placer la tête de lecture ici', fn: () => seek(t) },
     { label: 'Tout désélectionner', key: 'Échap', fn: () => { selClear(); renderSylList(); TL.invalidate(); } },
     { sep: 1 },
     { label: 'Voir tout le morceau', key: 'F', fn: () => zoomFit() },
     { label: 'Zoomer sur la sélection', dis: !selCount(), fn: () => zoomSelection() },
     { sep: 1 },
-    { label: 'Effacer TOUS les timings…', cls: 'dgr', fn: clearAllTimings }
+    { label: 'Effacer tous les timings…', cls: 'dgr', fn: clearAllTimings }
   ]);
 }
 
@@ -5936,19 +5948,27 @@ function renderSylList() {
   const curFlat = S.tapMode ? S.tapIdx : -1;
   let flat = 0;
   const frag = document.createDocumentFragment();
+  /* seule la ligne sélectionnée est détaillée : la timeline montre déjà tout */
+  const only = S.sylAll || S.tapMode ? null : S.sel.line;
+  const which = $('#sylWhich');
+  if (which) {
+    const L = S.lines[S.sel.line];
+    which.textContent = !S.lines.length ? '—' : only == null ? `${S.lines.length} lignes` : `Ligne ${S.sel.line + 1} / ${S.lines.length}` + (L ? ` · ${L.syls.length} syllabes · ↑ ↓ pour changer` : '');
+  }
   S.lines.forEach((L, li) => {
+    if (only != null && li !== only) { flat += L.syls.length; return; }
     const row = document.createElement('div');
     row.className = 'lineRow' + (li === S.sel.line ? ' act' : '');
     const hd = document.createElement('div'); hd.className = 'lineHd';
     const sp = lineSpan(L);
     hd.innerHTML = `<b>${String(li + 1).padStart(2, '0')}</b> ${sp ? fmtTime(sp[0]) + ' → ' + fmtTime(sp[1]) : '<span class="untimed">non calée</span>'}`;
     const mini = document.createElement('div'); mini.className = 'mini';
-    const b1 = document.createElement('button'); b1.textContent = '▶'; b1.title = 'Lire depuis cette phrase';
+    const b1 = document.createElement('button'); b1.innerHTML = icon('play'); b1.title = 'Lire depuis cette phrase'; b1.setAttribute('aria-label', b1.title);
     b1.disabled = !sp;
     b1.onclick = ev => { ev.stopPropagation(); if (sp) { seek(Math.max(0, sp[0] - .4)); play(); } };
     mini.appendChild(b1);
     const b2 = document.createElement('button');
-    b2.textContent = '✕'; b2.title = 'Retirer la phrase de la timeline (le texte reste)';
+    b2.textContent = '✕'; b2.title = 'Effacer le calage de la phrase (le texte reste)'; b2.setAttribute('aria-label', b2.title);
     b2.disabled = !sp;
     b2.onclick = ev => { ev.stopPropagation(); clearLine(li); };
     mini.appendChild(b2);
@@ -6004,10 +6024,10 @@ async function rebuild(keepTiming) {
      quoi revenir en arrière. C'est ici qu'on perdait des heures de calage. */
   if (timed && !keepTiming) {
     const ok = await modal({
-      title: 'REDÉCOUPER ?',
+      title: 'Redécouper ?',
       body: `<div class="hint big">Redécouper va effacer le placement de <b>${timed} syllabe${timed > 1 ? 's' : ''}</b>.<br><br>
         Pour garder ton calage, choisis <b>Redécouper sans perdre les timings</b>.</div>`,
-      ok: 'EFFACER ET REDÉCOUPER', cancel: 'ANNULER'
+      ok: 'Effacer et redécouper', cancel: 'Annuler'
     });
     if (!ok) return;
   }
@@ -6189,7 +6209,7 @@ function clearLine(li) {
   selOne(li, 0);
   S.tapIdx = Math.max(0, allSyls().findIndex(o => o.li === li && o.si === 0));
   renderSylList(); TL.invalidate(); requestRender();
-  toast(`Phrase ${li + 1} retirée de la timeline — « Reprendre à la syllabe choisie » pour la recaler`);
+  toast(`Calage de la phrase ${li + 1} effacé — « Reprendre à la syllabe choisie » pour la recaler`);
 }
 /* ------------------------------------------------------------ import I/O --- */
 /** Accepts `mm:ss.cc`, `mm:ss.mmm` and the ASS form `h:mm:ss.cc`. */
@@ -6355,7 +6375,7 @@ function setDocument(d) {
   if (d.font && d.font.data) installFont(d.font.name, d.font.data).catch(() => toast('Police du morceau illisible', true));
   else if (P.fontFamily === '__custom__' && !S.customFont) {
     P.fontFamily = FONTS[1][0]; syncPanels();
-    toast('Police personnalisée absente — Impact en attendant, recharge-la par ⋯ FICHIER', true);
+    toast('Police personnalisée absente — Impact en attendant, recharge-la par le menu Fichier', true);
   }
   S.lines = cleanLines(d.lines || []);
   $('#lyricsText').value = d.lyrics != null ? d.lyrics : S.lines.map(L => L.raw).join('\n');
@@ -6393,10 +6413,10 @@ async function confirmDiscard(what) {
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (!Doc.linesDirty || !timed) return true;
   return modal({
-    title: 'TRAVAIL NON ENREGISTRÉ',
+    title: 'Travail non enregistré',
     body: `<div class="hint big">${esc(what)} va remplacer <b>${timed} syllabes calées</b> qui ne sont pas dans la bibliothèque.<br><br>
       <b>Ctrl+S</b> les y range. Continuer quand même ?</div>`,
-    ok: 'CONTINUER', cancel: 'ANNULER'
+    ok: 'Continuer', cancel: 'Annuler'
   });
 }
 /* -------------------------------------------------------------- app loop --- */
@@ -6493,8 +6513,9 @@ const Lib = {
         if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'k' });
       };
-      rq.onsuccess = () => { this.db = rq.result; res(this.db); };
+      rq.onsuccess = () => { this.db = rq.result; this.db.onversionchange = () => { this.db.close(); this.db = null; }; res(this.db); };
       rq.onerror = () => rej(rq.error);
+      rq.onblocked = () => rej(new Error('bibliothèque ouverte dans un autre onglet'));
     });
   },
 
@@ -6544,7 +6565,8 @@ const Lib = {
   },
 
   async saveSet() {
-    await this.req('meta', 'readwrite', s => s.put({ k: 'setlist', ids: this.setlist }));
+    try { await this.req('meta', 'readwrite', s => s.put({ k: 'setlist', ids: this.setlist })); }
+    catch (e) { console.warn('[set]', e); toast('Le set n\'a pas pu être enregistré : ' + (e.message || e), true); }
     this.changed();
   },
   addToSet(id) { if (!this.setlist.includes(id)) { this.setlist.push(id); this.saveSet(); } },
@@ -6585,11 +6607,11 @@ async function askSongInfo() {
   const g = guessSongInfo(S.audioName);
   const title = S.song.title || g.title, artist = S.song.artist || g.artist;
   const ok = await modal({
-    title: 'ENREGISTRER DANS LA BIBLIOTHÈQUE',
+    title: 'Enregistrer dans la bibliothèque',
     body: `<div class="row wide"><label>Titre</label><input type="text" id="siTitle" value="${esc(title)}"></div>
       <div class="row wide"><label>Artiste</label><input type="text" id="siArtist" value="${esc(artist)}"></div>
       <div class="hint">${S.audioBlob ? 'L\'audio est rangé avec les paroles : le morceau sera jouable hors ligne.' : 'Sans audio : le morceau se jouera en live sur l\'horloge, son externe.'}</div>`,
-    ok: 'ENREGISTRER',
+    ok: 'Enregistrer',
     validate: () => { if (!$('#siTitle').value.trim()) { $('#siTitle').focus(); return false; } return true; }
   });
   if (!ok) return false;
@@ -6602,7 +6624,7 @@ async function askSongInfo() {
 async function saveToLibrary(forceAsk, asNew) {
   if (Lib.saving) return false;                    // double-clic, Ctrl+S tenu
   if (!S.lines.some(L => L.syls.length)) { toast('Rien à enregistrer : pas encore de paroles', true); return false; }
-  if (!Lib.ok) { toast('Bibliothèque indisponible ici — exporte en .kfj (menu FICHIER)', true); return false; }
+  if (!Lib.ok) { toast('Bibliothèque indisponible ici — exporte en .kfj (menu Fichier)', true); return false; }
   Lib.saving = true;
   try {
     if (forceAsk || !S.song.title) { if (!(await askSongInfo())) return false; }
@@ -6698,7 +6720,7 @@ const Online = {
   mountLrclib(host, { placeholder, pickLabel, onPick, initial }) {
     host.innerHTML = `
       <div class="searchRow"><input type="search" placeholder="${esc(placeholder || 'titre et artiste')}">
-        <button class="pri">CHERCHER</button></div>
+        <button class="pri">Chercher</button></div>
       <div class="results"></div>`;
     const input = $('input', host), btn = $('button', host), out = $('.results', host);
     if (initial) input.value = initial();
@@ -6719,7 +6741,7 @@ const Online = {
           row.innerHTML = `<div class="rMain"><b>${esc(r.trackName)}</b><span>${esc(r.artistName)}${r.duration ? ' · ' + fmtTime(r.duration, false) : ''}</span></div>
             <span class="badge ${kind[0]}">${kind[1]}</span>`;
           const pick = document.createElement('button');
-          pick.textContent = pickLabel || 'UTILISER';
+          pick.textContent = pickLabel || 'Utiliser';
           pick.disabled = kind[0] === 'none';
           pick.onclick = () => onPick(r, pick);
           row.appendChild(pick);
@@ -6752,7 +6774,12 @@ const Online = {
       $('.relink', host).onclick = e => { e.preventDefault(); this.mountYoutube(host); };
       return;
     }
-    if (!info.ytdlp) { host.innerHTML = '<div class="hint err">Companion lancé, mais yt-dlp est introuvable : voir companion/LISEZ-MOI.md.</div>'; return; }
+    if (!info.ytdlp) {
+      host.innerHTML = `<div class="hint err">yt-dlp est introuvable. Dépose <b>yt-dlp.exe</b> (et <b>ffmpeg.exe</b>) dans ce dossier, puis <a href="#" class="relink">réessaie</a> :</div>
+        <div class="hint" style="user-select:text;word-break:break-all">${esc(info.binDir || 'companion\bin')}</div>`;
+      $('.relink', host).onclick = e => { e.preventDefault(); this.mountYoutube(host); };
+      return;
+    }
     host.innerHTML = `
       <div class="searchRow"><input type="search" placeholder="lien YouTube, ou recherche">
         <button class="pri">OK</button></div>
@@ -6786,7 +6813,7 @@ const Online = {
         for (const it of list) {
           const row = document.createElement('div'); row.className = 'result';
           row.innerHTML = `<div class="rMain"><b>${esc(it.title)}</b><span>${esc(it.channel)}${it.duration ? ' · ' + fmtTime(it.duration, false) : ''}</span></div>`;
-          const b = document.createElement('button'); b.textContent = 'AUDIO';
+          const b = document.createElement('button'); b.textContent = 'Audio';
           b.onclick = () => fetchAudio(it.id, it.title, b);
           row.appendChild(b); out.appendChild(row);
         }
@@ -6805,9 +6832,9 @@ async function useLrclibInEditor(rec) {
   if (!d.lines.length) { toast('Ce résultat ne contient pas de paroles', true); return; }
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (timed && !(await modal({
-    title: 'REMPLACER LES PAROLES ?',
+    title: 'Remplacer les paroles ?',
     body: `<div class="hint big">Les paroles actuelles et leurs <b>${timed} syllabes calées</b> seront remplacées. <b>Ctrl+Z</b> reste possible.</div>`,
-    ok: 'REMPLACER'
+    ok: 'Remplacer'
   }))) return;
   Undo.snap('paroles en ligne');
   S.lines = d.lines;
@@ -6839,7 +6866,7 @@ const LIVE_RATES = [.9, .95, 1, 1.05, 1.1, 1.2];
 const KEY_PARAMS = ['bgMode', 'bgC1', 'gridOn', 'vign', 'grain', 'scanAmt', 'chroma', 'glitchAmt'];
 
 const Live = {
-  step: 'flow', keyColor: '', keyPrev: null, lastLine: -2, lastBeatN: null,
+  step: 'flow', keyColor: '', keyPrev: null, leadBase: null, lastLine: -2, lastBeatN: null,
 
   init() {
     $('#lvScene').onclick = () => Scene.open();
@@ -6864,11 +6891,10 @@ const Live = {
     }
     $('#libFilter').oninput = () => this.renderLibrary();
     Online.mountLrclib($('#lvLrc'), {
-      placeholder: 'titre et artiste', pickLabel: '+ SET',
+      placeholder: 'titre et artiste', pickLabel: '+ Set',
       onPick: (r, b) => this.addFromWeb(r, b)
     });
     mountBeatTools($('#lvBeat'));
-    mountBeatTools($('#beatTools'));
     Lib.load();
     this.transportChanged(); this.rateChanged(); this.beatChanged();
   },
@@ -6903,7 +6929,7 @@ const Live = {
       row.innerHTML = `<span class="idx">${i + 1}</span><div class="rMain"><b>${esc(c.title)}</b><span>${esc(c.artist)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       for (const [lbl, tip, fn] of [['↑', 'Monter', () => Lib.moveInSet(i, -1)], ['↓', 'Descendre', () => Lib.moveInSet(i, 1)], ['✕', 'Retirer du set', () => Lib.removeFromSet(i)]]) {
-        const b = document.createElement('button'); b.textContent = lbl; b.title = tip;
+        const b = document.createElement('button'); b.textContent = lbl; b.title = tip; b.setAttribute('aria-label', tip);
         b.onclick = ev => { ev.stopPropagation(); fn(); };
         tools.appendChild(b);
       }
@@ -6925,15 +6951,16 @@ const Live = {
       row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(sub)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       const inSet = Lib.setlist.includes(c.id);
-      const add = document.createElement('button'); add.textContent = inSet ? '✓' : '+ SET'; add.disabled = inSet;
+      const add = document.createElement('button'); add.textContent = inSet ? 'Dans le set' : '+ Set'; add.disabled = inSet;
       add.title = 'Ajouter au set'; add.onclick = ev => { ev.stopPropagation(); Lib.addToSet(c.id); };
-      const edit = document.createElement('button'); edit.textContent = 'ÉDITER'; edit.title = 'Ouvrir dans PRÉPARER';
+      const edit = document.createElement('button'); edit.textContent = 'Éditer'; edit.title = 'Ouvrir dans Préparer';
       edit.onclick = async ev => { ev.stopPropagation(); if (await openSong(c.id)) setWorkspace('prep'); };
-      const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Supprimer de la bibliothèque'; del.className = 'dgr';
+      const del = document.createElement('button'); del.textContent = 'Supprimer'; del.title = 'Supprimer définitivement de la bibliothèque'; del.className = 'dgr';
       del.onclick = async ev => {
         ev.stopPropagation();
-        if (!(await modal({ title: 'SUPPRIMER ?', body: `<div class="hint big">« <b>${esc(c.title)}</b> » sera supprimé de la bibliothèque, avec son audio et son calage. Irréversible.</div>`, ok: 'SUPPRIMER' }))) return;
-        await Lib.remove(c.id);
+        if (!(await modal({ title: 'Supprimer ce morceau ?', body: `<div class="hint big">« <b>${esc(c.title)}</b> » sera supprimé de la bibliothèque, avec son audio et son calage. Irréversible.</div>`, ok: 'Supprimer' }))) return;
+        try { await Lib.remove(c.id); }
+        catch (e) { toast('Suppression impossible : ' + (e.message || e), true); return; }
         if (S.song.id === c.id) { S.song.id = null; Doc.touch(); }
         toast('Morceau supprimé');
       };
@@ -6942,7 +6969,7 @@ const Live = {
       row.onclick = e => { if (e.detail < 2) this.cue(c.id); };
       libHost.appendChild(row);
     }
-    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>1 PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
+    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>Préparer</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
     $('#libCount').textContent = Lib.songs.length ? `(${Lib.songs.length})` : '';
   },
 
@@ -6951,6 +6978,7 @@ const Live = {
       const keep = $('#lvKeepStyle').checked;
       const key = this.keyColor;
       if (!(await openSong(id, { keepStyle: keep }))) return;
+      this.leadBase = null;
       if (key && !keep) { this.keyPrev = null; this.setKey(key); }
       this.setSource(S.buffer ? 'audio' : 'ext', true);
       this.lastLine = -2;
@@ -7103,14 +7131,18 @@ const Live = {
       décale l'affichage (sans toucher au son, qui ne doit pas hoqueter). */
   nudge(d) {
     if (S.extClock || !S.buffer) seek(now() + d);
-    else { P.fillLead = clamp(P.fillLead + d * 1000, -2000, 2000); syncPanels(); docChanged(); requestRender(); }
+    else {
+      // un recalage de soirée : il ne doit pas s'enregistrer dans le morceau
+      if (this.leadBase == null) this.leadBase = P.fillLead;
+      P.fillLead = clamp(P.fillLead + d * 1000, -2000, 2000); syncPanels(); docChanged(); requestRender();
+    }
     toast((d > 0 ? 'Paroles en avance de ' : 'Paroles en retard de ') + Math.abs(d * 1000) + ' ms');
   },
 
   toggleBlack() {
     S.blackout = !S.blackout;
     $('#lvBlack').classList.toggle('on', S.blackout);
-    $('#lvBlack').textContent = S.blackout ? '■ TEXTE MASQUÉ — N POUR RÉAFFICHER' : '■ MASQUER LE TEXTE (N)';
+    $('#lvBlack').textContent = S.blackout ? 'Texte masqué — N pour réafficher' : 'Masquer le texte';
     if (Scene.isOpen()) Scene.sendDoc();
     requestRender();
   },
@@ -7133,7 +7165,14 @@ const Live = {
       d'incrustation du live (vert, bleu, noir) est un état de soirée, pas
       un style — sans ce filtre, Ctrl+S rangeait le fond vert dans le morceau. */
   docParams() {
-    return this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
+    const p = this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
+    if (this.leadBase != null) p.fillLead = this.leadBase;
+    return p;
+  },
+  /** En quittant le live ou en changeant de morceau, le recalage de soirée s'oublie. */
+  resetLead() {
+    if (this.leadBase == null) return;
+    P.fillLead = this.leadBase; this.leadBase = null; syncPanels(); requestRender();
   },
 
   toggleBeat() {
@@ -7143,7 +7182,7 @@ const Live = {
   },
 
   transportChanged() {
-    const b = $('#lvPlay'); if (b) b.textContent = S.playing ? '❚❚' : '▶';
+    const b = $('#lvPlay'); if (b) b.innerHTML = icon(S.playing ? 'pause' : 'play');
   },
   rateChanged() { $$('#lvRate button').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.r - S.rate) < 1e-6)); },
   beatChanged(flash) {
@@ -7160,17 +7199,17 @@ function mountBeatTools(host) {
       <div class="bpmRow"><input type="number" class="bpmIn" min="40" max="240" step="0.1" title="Tempo"><span>BPM</span>
         <span class="beatDots"><i></i><i></i><i></i><i></i></span></div>
       <div class="segRow tight src">
-        <button data-bsrc="song" title="La grille suit le morceau (préparation, export)">MORCEAU</button>
-        <button data-bsrc="tap" title="Tempo frappé ou saisi, calé sur l'instant">TAP</button>
-        <button data-bsrc="link" title="Ableton Link, via le companion et Carabiner">LINK</button>
+        <button data-bsrc="song" title="La grille suit le morceau (préparation, export)">Morceau</button>
+        <button data-bsrc="tap" title="Tempo frappé ou saisi, calé sur l'instant">Tap</button>
+        <button data-bsrc="link" title="Ableton Link, via le companion et Carabiner">Link</button>
       </div>
       <div class="segRow tight">
-        <button class="bTap hero" title="Frappe au moins deux fois en rythme — touche T">TAP</button>
+        <button class="bTap hero" title="Frappe au moins deux fois en rythme — touche T">Tap</button>
         <button data-bk="0.5" title="Tempo divisé par deux">÷2</button>
         <button data-bk="2" title="Tempo doublé">×2</button>
-        <button class="bResync" title="Le temps, c'est maintenant">CALER</button>
+        <button class="bResync" title="Le temps, c'est maintenant">Caler</button>
       </div>
-      <div class="rowbtn"><button class="bDetect" title="Cherche le tempo dans l'audio du morceau">♫ DÉTECTER DANS L'AUDIO</button></div>
+      <div class="rowbtn"><button class="bDetect" title="Cherche le tempo dans l'audio du morceau">Détecter dans l'audio</button></div>
       <div class="hint linkState"></div>
     </div>`;
   const inp = $('.bpmIn', host);
@@ -7269,9 +7308,9 @@ const Scene = {
   updateUi() {
     const el = $('#sceneState'); if (!el) return;
     const on = this.isOpen();
-    el.textContent = on ? '● écran scène connecté' : '○ écran scène fermé';
+    el.textContent = on ? 'Écran scène connecté' : 'Écran scène fermé';
     el.classList.toggle('on', on);
-    const b = $('#lvScene'); if (b) b.textContent = on ? 'MONTRER L\'ÉCRAN SCÈNE' : 'OUVRIR L\'ÉCRAN SCÈNE ↗';
+    const b = $('#lvScene'); if (b) b.innerHTML = icon('scene') + (on ? 'Montrer l\'écran scène' : 'Ouvrir l\'écran scène');
     $('#stageWrap').classList.toggle('paused', this.previewPaused());
   },
 
@@ -7400,7 +7439,7 @@ const Beat = {
   src: 'song',                // song | tap | link
   bpm: 120, anchorEpoch: 0, anchorBeat: 0,
   taps: [],
-  link: { want: false, es: null, companion: false, connected: false, peers: 0, retry: 0 },
+  link: { want: false, es: null, companion: false, connected: false, peers: 0, retry: 0, wait: 2000 },
 
   get live() { return this.src !== 'song' && !S.exporting; },
   liveBeat() { return this.anchorBeat + (epochNow() - this.anchorEpoch) / 60000 * this.bpm; },
@@ -7496,9 +7535,9 @@ const Beat = {
     if (L.es) return;
     let es;
     try { es = new EventSource(COMPANION + '/link'); }
-    catch (e) { L.retry = setTimeout(() => this.connectLink(L.want), 4000); return; }
+    catch (e) { L.retry = setTimeout(() => this.connectLink(L.want), L.wait); L.wait = Math.min(30000, L.wait * 2); return; }
     L.es = es;
-    es.onopen = () => { L.companion = true; this.changed(); };
+    es.onopen = () => { L.companion = true; L.wait = 2000; this.changed(); };
     es.onmessage = ev => {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       L.companion = true;
@@ -7517,7 +7556,8 @@ const Beat = {
       es.close(); if (L.es === es) L.es = null;
       L.companion = false; L.connected = false;
       this.changed();
-      if (L.want) L.retry = setTimeout(() => this.connectLink(L.want), 4000);
+      // sans companion, on réessaie de moins en moins souvent (2 s → 30 s) : la console reste lisible
+      if (L.want) { L.retry = setTimeout(() => this.connectLink(L.want), L.wait); L.wait = Math.min(30000, L.wait * 2); }
     };
   },
 
@@ -7567,7 +7607,7 @@ function openExport() {
   const hasWC = typeof VideoEncoder !== 'undefined';
   const hasDir = typeof showDirectoryPicker === 'function';
 
-  $('#modalTitle').textContent = 'EXPORT VIDÉO';
+  $('#modalTitle').textContent = 'Exporter la vidéo';
   $('#modalBody').innerHTML = `
     <div class="row wide"><label>Format</label><select id="exFmt">
       <option value="mp4"${hasWC ? '' : ' disabled'}>MP4 · H.264 + audio (recommandé)</option>
@@ -7591,7 +7631,7 @@ function openExport() {
     if ($('#exFmt').value === 'png') {
       extra = hasDir ? ' · tu choisiras un dossier de destination'
         : ' · pas de sélecteur de dossier ici : les images partiront en .zip';
-      if (P.bgMode !== 'alpha') extra += ' — règle FX → FOND sur « Transparent » pour un vrai canal alpha';
+      if (P.bgMode !== 'alpha') extra += ' — règle Décor → Fond sur « Transparent » pour un vrai canal alpha';
     }
     $('#exInfo').textContent = `${S.W}×${S.H} · ${n} images · ${fmtTime(Math.max(0, b2 - a2), false)}` + extra;
   };
@@ -7602,8 +7642,8 @@ function openExport() {
   if (Modal.close) Modal.close();
   $('#modal').classList.add('on');
   $('#mOk').hidden = false; $('#mCancel').hidden = false;
-  $('#mCancel').textContent = 'FERMER';
-  $('#mOk').textContent = 'LANCER';
+  $('#mCancel').textContent = 'Fermer';
+  $('#mOk').textContent = 'Lancer';
   Modal.close = () => $('#mCancel').onclick();
   $('#mOk').onclick = () => {
     EX.fps = +$('#exFps').value; EX.start = +$('#exA').value; EX.end = +$('#exB').value;
@@ -7621,7 +7661,7 @@ function openExport() {
 let _savedRes = null;
 function beginExport() {
   S.exporting = true; EX.abort = false; EX.beat = performance.now();
-  $('#stageBadge').textContent = 'EXPORT EN COURS';
+  $('#stageBadge').textContent = 'Export en cours';
   pause();
   _savedRes = [RW, RH];
   setRenderSize(S.W, S.H);
@@ -7715,7 +7755,7 @@ async function exportMp4() {
       });
       withAudio = !!(s && s.supported);
     } catch (e) { withAudio = false; }
-    if (!withAudio) { console.warn('[export] encodeur AAC indisponible : la vidéo sera muette'); }
+    if (!withAudio) { console.warn('[export] encodeur AAC indisponible : la vidéo sera muette'); toast('Pas d\'encodeur audio dans ce navigateur : la vidéo sera muette', true); }
   }
 
   /* ---- 3. on bascule en mode rendu hors ligne ---- */
@@ -7985,131 +8025,168 @@ async function exportPng() {
 /* ================================================================== AIDE === */
 const K = s => `<span class="kbd">${s}</span>`;
 
-function helpSections() {
+/* La table des raccourcis, par espace de travail. C'est elle qui nourrit
+   l'aide (F1) : ce qui est écrit ici est ce que le clavier fait.           */
+function keyMap() {
   const TK = tapKeyLabel();
+  return {
+    all: [
+      [K('Alt') + '+' + K('1') + ' ' + K('2') + ' ' + K('3'), 'Préparer · Style · Live'],
+      [K('Espace'), 'Lecture / pause'],
+      [K('Ctrl') + '+' + K('S'), 'Enregistrer dans la bibliothèque (pas en Live)'],
+      [K('Ctrl') + '+' + K('Maj') + '+' + K('S'), 'Exporter le projet en fichier .kfj'],
+      [K('Ctrl') + '+' + K('E'), 'Exporter la vidéo'],
+      [K('F1') + ' · ' + K('?'), 'Cette aide'],
+      [K('Échap'), 'Fermer, annuler le geste en cours, désélectionner']
+    ],
+    prep: [
+      [K('Ctrl') + '+' + K('Z') + ' / ' + K('Ctrl') + '+' + K('Maj') + '+' + K('Z'), 'Annuler / rétablir (timings et paroles)'],
+      [K('T'), 'Entrer / sortir du calage'],
+      [K(TK), 'Pendant le calage : poser une syllabe (tenir = note longue)'],
+      [K('Retour arrière'), 'Pendant le calage : annuler la dernière frappe · sinon effacer le timing sélectionné'],
+      [K('J') + ' · ' + K('K') + ' · ' + K('L'), 'Ralentir · pause · accélérer'],
+      [K('←') + K('→') + ' / ' + K('↑') + K('↓'), 'Syllabe / ligne précédente ou suivante'],
+      [K('Maj') + '+' + K('←') + K('→'), 'Décaler la sélection de 10 ms (' + K('Alt') + ' en plus : 1 ms)'],
+      [K('I') + ' / ' + K('O'), 'Début / fin de la syllabe sur la tête de lecture'],
+      [K('M'), 'Fusionner les syllabes sélectionnées'],
+      [K('Suppr') + ' / ' + K('Maj') + '+' + K('Suppr'), 'Effacer le timing / supprimer les syllabes'],
+      [K('Ctrl') + '+' + K('A'), 'Sélectionner la ligne, une seconde fois tout le morceau'],
+      [K('B'), 'Boucler la ligne'],
+      [K('V') + ' · ' + K('C'), 'Outil sélection · outil lame'],
+      [K('S') + ' · ' + K('R'), 'Aimant · décaler la suite'],
+      [K('+') + ' ' + K('−') + ' · ' + K('F'), 'Zoom · tout voir' + (TK === 'F' ? ' (F est ta touche de calage : passe par le bouton)' : '')],
+      [K('Début') + ' / ' + K('Fin'), 'Début / fin du morceau']
+    ],
+    style: [
+      [K('Ctrl') + '+' + K('Z') + ' / ' + K('Ctrl') + '+' + K('Maj') + '+' + K('Z'), 'Annuler / rétablir un réglage ou une ambiance'],
+      [K('T'), 'Tap tempo'],
+      [K('J') + ' · ' + K('K') + ' · ' + K('L'), 'Ralentir · pause · accélérer'],
+      [K('↑') + K('↓'), 'Ligne précédente / suivante (pour juger le rendu)'],
+      [K('←') + K('→'), 'Reculer / avancer de 2 s'],
+      [K('+') + ' ' + K('−') + ' · ' + K('F'), 'Zoom de la timeline · tout voir']
+    ],
+    live: [
+      [K('←') + ' / ' + K('→'), 'Début de ligne ou ligne précédente / ligne suivante'],
+      [K('↑') + ' / ' + K('↓'), 'Paroles en avance / en retard de 100 ms'],
+      [K('1') + '…' + K('9'), 'Charger le morceau n° du set'],
+      [K('Entrée') + ' / ' + K('Maj') + '+' + K('Entrée'), 'Morceau suivant / précédent du set'],
+      [K('Début'), 'Première ligne'],
+      [K('T'), 'Tap tempo'],
+      [K('N'), 'Masquer / réafficher le texte'],
+      [K('K'), 'Fond vert / ambiance'],
+      [K('L') + ' · ' + K('X') + ' · ' + K('R'), 'Ligne par ligne · son extérieur · réaction au rythme'],
+      [K('O'), 'Ouvrir l\'écran scène']
+    ]
+  };
+}
+
+function helpSections() {
+  const KM = keyMap();
   return [
-    ['DÉMARRAGE', [['p',
-      `Trois espaces de travail, en haut à gauche : ${K('1 PRÉPARER')} ${K('2 STYLE')} ${K('3 LIVE')} — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
+    ['Démarrage', [['p',
+      `Trois espaces de travail, en haut à gauche : <b>Préparer</b>, <b>Style</b>, <b>Live</b> — ou ${K('Alt')}+${K('1')} ${K('2')} ${K('3')}.`
     ], ['t', [
-      ['1 AUDIO', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
-      ['2 PAROLES', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
-      ['3 CALAGE', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
-      ['4 AJUSTER', 'Tu peaufines à la souris et au clavier'],
-      ['5 RANGER', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
+      ['1 · Audio', 'Dépose ton fichier, ou récupère-le depuis YouTube via le companion'],
+      ['2 · Paroles', 'Colle le texte ou cherche-le en ligne, puis découpe en syllabes'],
+      ['3 · Calage', 'Tu écoutes et tu frappes une touche sur chaque syllabe'],
+      ['4 · Ajuster', 'Tu peaufines à la souris et au clavier'],
+      ['5 · Ranger', 'Ctrl+S : le morceau part dans la bibliothèque, prêt pour le live']
     ]], ['p',
       `Le panneau de gauche est le parcours : l'étape utile s'ouvre d'elle-même, un clic sur un titre y revient. ` +
-      `Tout est enregistré automatiquement dans le navigateur en cas de fermeture accidentelle.`]]],
+      `Tout est enregistré automatiquement en cas de fermeture accidentelle.`]]],
 
-    ['CALER LES PAROLES', [['p',
-      `${K('◈ CALER EN ÉCOUTANT')} lance la lecture un peu avant le point de reprise et affiche en grand la syllabe à frapper.`
+    ['Caler les paroles', [['p',
+      `<b>Caler en écoutant</b> lance la lecture un peu avant le point de reprise et affiche en grand la syllabe à frapper.`
     ], ['t', [
-      [K('T'), 'Démarrer / arrêter le calage'],
-      ['la touche de calage', `Début de la syllabe — ${TK} actuellement, modifiable`],
-      ['tenir la touche', 'Sur la dernière syllabe d\'une ligne : la note reste à l\'écran tant que tu tiens'],
-      [K('Retour'), 'Annuler la dernière et reculer un peu'],
+      ['Frapper', `Début de la syllabe — touche ${K(tapKeyLabel())}, modifiable à côté du bouton`],
+      ['Tenir la touche', 'Sur la dernière syllabe d\'une ligne : la note reste à l\'écran tant que tu tiens'],
+      [K('Retour arrière') + ' · ' + K('Ctrl') + '+' + K('Z'), 'Annuler la dernière frappe et reculer un peu'],
       [K('Échap'), 'Sortir du calage'],
       ['Reprendre à la syllabe choisie', 'Repartir d\'une syllabe précise']
     ]], ['p',
       `<b>Ralentis la musique</b> si le débit est rapide : ${K('0.25×')} ${K('0.5×')} ${K('0.75×')} ${K('1×')} en haut. ` +
-      `<em>Les timings restent ceux du morceau à vitesse normale</em>, et la latence de la carte son est compensée. ` +
-      `${K('J')} ralentit, ${K('L')} accélère, ${K('K')} met en pause.`]]],
+      `<em>Les timings restent ceux du morceau à vitesse normale</em>, et la latence de la carte son est compensée.`]]],
 
-    ['AFFINER SANS TOUT REFAIRE', [['t', [
-      [K('↻ BOUCLER LA LIGNE') + ' ou ' + K('B'), 'Rejoue la ligne en boucle pendant que tu ajustes'],
-      [K('Maj') + '+' + K('←') + K('→'), 'Décaler la sélection de 10 ms'],
-      [K('Maj') + '+' + K('Alt') + '+ flèches', 'Décaler de 1 ms'],
+    ['Affiner sans tout refaire', [['t', [
+      ['Boucle (' + K('B') + ')', 'Rejoue la ligne en boucle pendant que tu ajustes'],
+      [K('Maj') + '+' + K('←') + K('→'), 'Décaler la sélection de 10 ms — tenir la touche ne fait qu\'une étape d\'annulation'],
       [K('I') + ' / ' + K('O'), 'Caler le début / la fin sur la tête de lecture'],
-      [K('♫'), 'Aimanter la sélection sur le départ de note le plus proche'],
-      [K('Ctrl') + '+' + K('Z'), 'Annuler · ' + K('Ctrl') + '+' + K('Maj') + '+' + K('Z') + ' rétablir']
+      ['Sur l\'attaque', 'Aimanter la sélection sur le départ de note le plus proche'],
+      [K('Ctrl') + '+' + K('Z'), 'Annuler — la sélection reste en place pour recommencer autrement']
     ]], ['p',
       `Une ligne entière à refaire ? Cale sa première et sa dernière syllabe — ou importe des paroles synchronisées — puis ` +
-      `${K('♫ Poser sur les attaques')} place les autres sur les vrais départs de notes détectés dans l'audio, ` +
-      `ou ${K('↔ Répartir régulièrement')} les étale. Instantané, 100 % local.`]]],
+      `<b>Poser sur les attaques</b> place les autres sur les vrais départs de notes détectés dans l'audio, ` +
+      `ou <b>Répartir régulièrement</b> les étale. Instantané, 100 % local.`]]],
 
-    ['TIMELINE — SOURIS', [['t', [
+    ['Timeline — souris', [['t', [
       ['Clic sur la règle ou l\'onde', 'Placer la tête de lecture (glisser pour la déplacer)'],
       ['Clic sur une syllabe', 'La sélectionner et s\'y placer — un clic ne déplace jamais rien'],
-      ['Glisser le corps', 'Déplacer la syllabe et toute la sélection'],
+      ['Glisser le corps', 'Déplacer la syllabe et toute la sélection ; l\'infobulle suit le temps et l\'écart'],
       ['Glisser un bord', 'Changer le début ou la fin (le curseur devient ↔)'],
       ['Glisser une ligne (piste du milieu)', 'Déplacer toute la ligne d\'un bloc'],
-      ['Glisser dans le vide', 'Lasso de sélection multiple'],
+      ['Glisser dans le vide', 'Lasso de sélection — ' + K('Alt') + ' retire de la sélection'],
       [K('Ctrl') + '+ clic / ' + K('Maj') + '+ clic', 'Ajouter / retirer · sélectionner une plage'],
       ['Double-clic', 'Zoomer sur la ligne · sur la règle : tout voir'],
       ['Clic droit', 'Menu : effacer, couper, fusionner, aimanter…'],
       ['Molette', 'Zoom centré sur le curseur'],
-      [K('Maj') + '+ molette · clic molette', 'Faire défiler'],
+      [K('Maj') + '+ molette · clic molette', 'Faire défiler (met le suivi en pause pendant la lecture)'],
       [K('Alt') + ' pendant un glissé', 'Désactive l\'aimantation'],
-      [K('Échap') + ' pendant un glissé', 'Rien ne bouge : le geste est annulé si la fenêtre perd la main']
+      [K('Échap') + ' pendant un glissé', 'Annule le geste : rien ne bouge']
     ]], ['p',
       `Une syllabe ne peut pas traverser sa voisine : les blocs s'arrêtent au contact. ` +
-      `Le mode ${K('DÉCALER LA SUITE')} emmène tout ce qui suit.`]]],
+      `<b>Décaler la suite</b> emmène tout ce qui suit. Les petits traits sous la règle sont les attaques détectées dans l'audio : l'aimant s'y accroche aussi.`]]],
 
-    ['TIMELINE — CLAVIER', [['t', [
-      [K('Espace'), 'Lecture / pause'],
-      [K('←') + K('→') + ' / ' + K('↑') + K('↓'), 'Syllabe / ligne précédente ou suivante'],
-      [K('V') + ' · ' + K('C'), 'Outil sélection · outil lame'],
-      [K('S') + ' · ' + K('R'), 'Aimantation · décaler la suite'],
-      [K('+') + K('−') + ' · ' + K('F'), 'Zoom · tout voir (si F n\'est pas ta touche de calage)'],
-      [K('Suppr') + ' · ' + K('Maj') + '+' + K('Suppr'), 'Effacer le timing · supprimer les syllabes'],
-      [K('M') + ' · ' + K('Ctrl') + '+' + K('A'), 'Fusionner · sélectionner la ligne'],
-      [K('Début') + ' / ' + K('Fin'), 'Début / fin du morceau']
-    ]]]],
+    ['Raccourcis — partout', [['t', KM.all]]],
+    ['Raccourcis — Préparer', [['t', KM.prep]]],
+    ['Raccourcis — Style', [['t', KM.style]]],
+    ['Raccourcis — Live', [['t', KM.live]]],
 
-    ['PAROLES ET AUDIO EN LIGNE', [['p',
-      `<b>Paroles</b> — étape 2 → <em>chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
-      `Une version <em>synchronisée</em> arrive avec le début de chaque ligne : charge l'audio puis ${K('♫ Poser sur les attaques')}. ` +
+    ['Paroles et audio en ligne', [['p',
+      `<b>Paroles</b> — étape 2 → <em>Chercher les paroles en ligne</em>. La base LRCLIB est gratuite ; seul le texte cherché part sur le réseau. ` +
+      `Une version <em>synchronisée</em> arrive avec le début de chaque ligne : charge l'audio puis <b>Poser sur les attaques</b>. ` +
       `Vérifie que la durée de la version trouvée correspond à ton audio.<br><br>` +
-      `<b>Audio YouTube</b> — lance ${K('START-COMPANION.bat')} (dossier de l'app, Node.js requis), puis étape 1 → <em>depuis YouTube</em>. ` +
-      `Le companion utilise yt-dlp et n'écoute que ta machine.`]]],
+      `<b>Audio YouTube</b> — dans l'application de bureau, le companion est déjà lancé ; dépose <em>yt-dlp.exe</em> et <em>ffmpeg.exe</em> dans son dossier <em>bin</em> ` +
+      `(indiqué à l'étape 1 → <em>Depuis YouTube</em>). En navigateur, lance ${K('START-COMPANION.bat')}.`]]],
 
-    ['STYLE ET RYTHME', [['p',
-      `Les <b>ambiances</b> changent tout d'un clic. ${K('SIMPLE')} montre l'essentiel, ${K('EXPERT')} ouvre tout. ` +
-      `Double-clic sur la valeur d'un curseur : valeur par défaut.<br><br>` +
-      `Onglet <b>RYTHME</b> : coche <em>Réagir au rythme</em>, puis donne le tempo — ${K('♫ DÉTECTER')} le cherche dans l'audio, ` +
-      `${K('TAP')} (touche ${K('T')}) le frappe, ${K('÷2')} ${K('×2')} corrigent une erreur d'octave, ${K('CALER')} dit « le temps, c'est maintenant ». ` +
-      `En source <em>MORCEAU</em>, la grille suit l'audio et se retrouve à l'identique à l'export.`]]],
+    ['Style et rythme', [['p',
+      `Les <b>ambiances</b> changent tout d'un clic. <b>Simple</b> montre l'essentiel, <b>Expert</b> ouvre tout ; les réglages sans objet se cachent d'eux-mêmes. ` +
+      `Double-clic sur la valeur d'un curseur : valeur par défaut. ${K('Ctrl')}+${K('Z')} annule un réglage ou une ambiance.<br><br>` +
+      `Onglet <b>Rythme</b> : coche <em>Réagir au rythme</em>, puis donne le tempo — <b>Détecter dans l'audio</b> le cherche, ` +
+      `<b>Tap</b> (touche ${K('T')}) le frappe, ${K('÷2')} ${K('×2')} corrigent une erreur d'octave, <b>Caler</b> dit « le temps, c'est maintenant ». ` +
+      `En source <em>Morceau</em>, la grille suit l'audio et se retrouve à l'identique à l'export.`]]],
 
-    ['LIVE — LE SET', [['p',
+    ['Live — le set', [['p',
       `La <b>bibliothèque</b> contient tout ce que tu as rangé avec ${K('Ctrl+S')}, audio compris, disponible hors ligne. ` +
-      `Le <b>set</b> est la liste de la soirée : ${K('+ SET')} depuis la bibliothèque ou la recherche en ligne, ${K('↑')} ${K('↓')} pour l'ordre. ` +
-      `Clic : charger · double-clic : charger et lancer.`
-    ], ['t', [
-      [K('Espace'), 'Lecture / pause'],
-      [K('←') + ' / ' + K('→'), 'Début de ligne ou ligne précédente / ligne suivante'],
-      [K('↑') + ' / ' + K('↓'), 'Paroles en avance / en retard de 100 ms'],
-      [K('1') + '…' + K('9') + ' · ' + K('Entrée'), 'Charger le n° du set · morceau suivant'],
-      [K('T') + ' · ' + K('N') + ' · ' + K('K'), 'Tap tempo · masquer le texte · fond vert'],
-      [K('L') + ' · ' + K('X') + ' · ' + K('R'), 'Ligne par ligne · son extérieur · rythme'],
-      [K('O'), 'Ouvrir l\'écran scène']
-    ]], ['p',
-      `<b>SON EXTÉRIEUR</b> : quand la musique vient des platines, les paroles se déroulent sur l'horloge de l'app. ` +
-      `Lance-les sur la première ligne chantée, recale avec les flèches. <b>LIGNE PAR LIGNE</b> joue chaque ligne puis s'arrête : ` +
+      `Le <b>set</b> est la liste de la soirée : <b>+ Set</b> depuis la bibliothèque ou la recherche en ligne, ${K('↑')} ${K('↓')} pour l'ordre. ` +
+      `Clic : charger · double-clic : charger et lancer.<br><br>` +
+      `En Live, l'en-tête se vide : rien ne s'enregistre, rien ne s'exporte, ${K('Ctrl')}+${K('Z')} est neutre. Une fausse manip pendant le show ne touche à aucun morceau.`
+    ], ['p',
+      `<b>Son extérieur</b> : quand la musique vient des platines, les paroles se déroulent sur l'horloge de l'app. ` +
+      `Lance-les sur la première ligne chantée, recale avec les flèches — ce recalage de soirée n'est pas enregistré dans le morceau. <b>Ligne par ligne</b> joue chaque ligne puis s'arrête : ` +
       `le filet de sécurité quand le DJ ne suit pas la version calée.`]]],
 
-    ['ÉCRAN SCÈNE, RESOLUME, OBS', [['p',
-      `${K('OUVRIR L\'ÉCRAN SCÈNE')} ouvre une fenêtre sans interface. Glisse-la sur le second écran, double-clic (ou ${K('F')}) pour le plein écran, ` +
+    ['Écran scène, Resolume, OBS', [['p',
+      `<b>Ouvrir l'écran scène</b> ouvre une fenêtre sans interface. Glisse-la sur le second écran, double-clic (ou ${K('F')}) pour le plein écran, ` +
       `le curseur disparaît tout seul. Pendant ce temps, l'aperçu de la fenêtre de contrôle se met en pause pour épargner le GPU.<br><br>` +
       `<b>Resolume</b> : source <em>Screen Capture</em> sur cette fenêtre, ou passe par OBS (capture de fenêtre → NDI / Spout). ` +
-      `<b>Incrustation</b> : choisis le fond ${K('VERT')} ou ${K('BLEU')} puis un chroma key ; grille, vignette, grain et aberration sont coupés automatiquement, ` +
-      `et reviennent sur ${K('AMBIANCE')}. Pour un vrai canal alpha hors live, exporte en séquence PNG.`]]],
+      `<b>Incrustation</b> : choisis le fond <b>Vert</b> ou <b>Bleu</b> puis un chroma key ; grille, vignette, grain et aberration sont coupés automatiquement, ` +
+      `et reviennent sur <b>Ambiance</b>. Pour un vrai canal alpha hors live, exporte en séquence PNG.`]]],
 
-    ['FICHIERS ET EXPORT', [['t', [
-      [K('Ctrl') + '+' + K('S'), 'Enregistrer dans la bibliothèque'],
-      [K('Ctrl') + '+' + K('Maj') + '+' + K('S'), 'Exporter le projet en fichier .kfj'],
-      [K('Ctrl') + '+' + K('E'), 'Exporter la vidéo'],
+    ['Fichiers et export', [['t', [
       ['.ass / .ssa', 'Timings {\\k} lus et écrits au centième de seconde'],
       ['.lrc', 'Classique et enrichi, refrains multiples et [offset:] compris'],
-      ['.kfj', 'Le projet : paroles, timings et réglages (sans l\'audio)']
+      ['.kfj', 'Le projet : paroles, timings et réglages (sans l\'audio)'],
+      ['.ttf / .otf / .woff2', 'Une police, par le menu Fichier ou en la glissant dans la fenêtre']
     ]], ['p',
-      `L'export MP4 encode image par image : aucune image perdue. Pour un canal alpha, séquence PNG et <em>DÉCOR → FOND → Transparent</em>. ` +
+      `L'export MP4 encode image par image : aucune image perdue. Pour un canal alpha, séquence PNG et <em>Décor → Fond → Transparent</em>. ` +
       `Glisse n'importe quel fichier dans la fenêtre : audio, paroles .txt, timings, projet ou police.`]]],
 
-    ['PERFORMANCE', [['p',
-      `Le compteur en haut à droite de l'aperçu indique les particules vivantes. Si ça rame : baisse <em>Qualité aperçu</em> (DÉCOR → RENDU) ou <em>Max particules</em>. ` +
+    ['Performance', [['p',
+      `En mode Expert, un compteur en haut à droite de l'aperçu indique les particules vivantes. Si ça rame : baisse <em>Qualité aperçu</em> (Décor → Rendu) ou <em>Max particules</em>. ` +
       `L'export reste toujours en pleine résolution. En live, n'affiche l'aperçu que si le GPU le permet.`]]],
 
-    ['PARAMÈTRES', [['p',
-      `Active <em>MODE SURVOL</em> en haut de cette fenêtre : une barre en bas de l'écran explique chaque curseur, bouton et zone survolés.`]]]
+    ['Mode survol', [['p',
+      `Coche <em>Mode survol</em> en haut de cette fenêtre : une barre en bas de l'écran explique chaque curseur, bouton et zone survolés.`]]]
   ];
 }
 
@@ -8153,7 +8230,7 @@ function helpHover(e) {
   else span.innerHTML = "Survole n'importe quel élément pour savoir ce qu'il fait.";
 }
 /* ============================== LE PARCOURS =============================== */
-/* Quatre étapes, une seule ouverte à la fois. Quand l'état du projet change
+/* Cinq étapes, une seule ouverte à la fois. Quand l'état du projet change
    (audio chargé, paroles découpées, premier calage), la prochaine étape
    utile s'ouvre d'elle-même. Un clic sur un titre y revient.              */
 const Steps = {
@@ -8202,10 +8279,6 @@ const Steps = {
       const el = $('#st' + i); if (!el) continue;
       el.querySelector('h3').onclick = () => this.open(el.classList.contains('open') ? 0 : i);
     }
-    for (const t of $$('.more[data-box]')) {
-      const box = $('#' + t.dataset.box);
-      t.addEventListener('click', () => { const on = box.classList.toggle('on'); t.classList.toggle('open', on); });
-    }
   }
 };
 
@@ -8217,13 +8290,13 @@ function updateStageHint() {
   if (hasLyrics) return;
   const [b, span] = [h.querySelector('b'), h.querySelector('span')];
   if (S.ws === 'live') {
-    b.textContent = 'CHOISIS UN MORCEAU';
+    b.textContent = 'Choisis un morceau';
     span.textContent = 'dans le set à gauche — ou cherche des paroles en ligne';
   } else if (S.buffer) {
-    b.textContent = 'COLLE TES PAROLES';
+    b.textContent = 'Colle tes paroles';
     span.textContent = 'étape 2 à gauche — ou cherche-les en ligne';
   } else {
-    b.textContent = 'DÉPOSE UN FICHIER AUDIO';
+    b.textContent = 'Dépose un fichier audio';
     span.textContent = 'ou commence par les paroles, étape 2';
   }
 }
@@ -8232,7 +8305,7 @@ const WORKSPACES = ['prep', 'style', 'live'];
 
 function boot() {
   buildPresets();
-  setUiMode('simple');
+  setUiMode(UiPrefs.get().mode === 'expert' ? 'expert' : 'simple');
   if (!GL.init()) {
     document.body.innerHTML = '<div style="padding:40px;font:14px monospace;color:#ff2fd0">' +
       'WebGL2 est requis. Utilise Chrome ou Edge à jour.</div>';
@@ -8264,11 +8337,11 @@ async function offerRestore() {
   const age = Math.max(1, Math.round((Date.now() - r.when) / 60000));
   const quand = age < 60 ? `il y a ${age} min` : age < 2880 ? `il y a ${Math.round(age / 60)} h` : `il y a ${Math.round(age / 1440)} jours`;
   const ok = await modal({
-    title: 'TRAVAIL RETROUVÉ',
+    title: 'Travail retrouvé',
     body: `<div class="hint big">Une sauvegarde automatique de <b>${quand}</b> a été retrouvée :<br>
       <b class="cy">${r.lines} lignes · ${r.timed} syllabes calées</b>.<br><br>
       Elle est gardée dans ce navigateur, à part de la bibliothèque et de tes fichiers.</div>`,
-    ok: 'REPRENDRE', cancel: 'IGNORER'
+    ok: 'Reprendre', cancel: 'Ignorer'
   });
   if (!ok) { toast('Sauvegarde automatique laissée de côté'); return; }
   try {
@@ -8293,6 +8366,7 @@ function setWorkspace(ws) {
     if (S.extClock && S.playing) pause();
     S.extClock = false;
     if (S.blackout) Live.toggleBlack();
+    Live.resetLead();
     if (Beat.src !== 'song') Beat.setSource('song');   // hors live, la grille suit le morceau (aperçu = export)
   }
   S.ws = ws;
@@ -8309,15 +8383,17 @@ function setWorkspace(ws) {
 /* ------------------------------------------------------------------ câblage --- */
 function wire() {
   bindFocusHygiene();
+  applyIcons();
 
   $$('#wsNav button').forEach(b => b.onclick = () => setWorkspace(b.dataset.ws));
 
-  /* onglets de style */
-  $$('#tabsR button').forEach(b => b.onclick = () => {
-    $$('#tabsR button').forEach(x => x.classList.remove('on'));
-    b.classList.add('on');
-    $$('#right .tabpage').forEach(p => p.classList.toggle('on', p.id === b.dataset.p));
-  });
+  /* onglets de style — l'onglet ouvert est mémorisé */
+  const showTab = id => {
+    $$('#tabsR button').forEach(x => x.classList.toggle('on', x.dataset.p === id));
+    $$('#right .tabpage').forEach(p => p.classList.toggle('on', p.id === id));
+  };
+  $$('#tabsR button').forEach(b => b.onclick = () => { showTab(b.dataset.p); UiPrefs.set({ tab: b.dataset.p }); });
+  if (UiPrefs.get().tab && $('#' + UiPrefs.get().tab)) showTab(UiPrefs.get().tab);
   $('#mSimple').onclick = () => setUiMode('simple');
   $('#mExpert').onclick = () => setUiMode('expert');
   Steps.bind();
@@ -8327,7 +8403,6 @@ function wire() {
   $('#fProj').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) f.text().then(t => loadProject(t)).catch(er => toast('Projet illisible : ' + er.message, true)); };
   $('#fAss').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importTimingFile(f); };
   $('#fFont').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadFont(f); };
-  $('#bImport').onclick = () => $('#fAss').click();
   $('#bUnloadAudio').onclick = () => { unloadAudio(); toast('Audio retiré du projet'); };
 
   /* transport */
@@ -8345,18 +8420,19 @@ function wire() {
   $('#bMerge').onclick = () => rebuild(true);
   $('#bSave').onclick = () => saveToLibrary();
   $('#bSaveLib').onclick = () => saveToLibrary();
-  $('#bSaveAs').onclick = () => saveToLibrary(true, true);
+  $('#bSaveAs').onclick = e => { e.preventDefault(); saveToLibrary(true, true); };
+  $('#sylAll').onclick = () => { S.sylAll = !S.sylAll; $('#sylAll').classList.toggle('on', S.sylAll); renderSylList(); };
 
   /* menu FICHIER — regroupe tout ce qui n'a pas à encombrer la barre */
   $('#bProj').onclick = e => {
     const r = e.currentTarget.getBoundingClientRect();
     showCtx(r.left, r.bottom + 4, [
-      { hd: 'MORCEAU' },
+      { hd: 'Morceau' },
       { label: 'Enregistrer dans la bibliothèque', key: 'Ctrl+S', fn: () => saveToLibrary() },
       { label: 'Enregistrer comme nouveau morceau…', fn: () => saveToLibrary(true, true) },
       { label: 'Nouveau morceau (vide)', fn: newProject },
       { sep: 1 },
-      { hd: 'FICHIERS' },
+      { hd: 'Fichiers' },
       { label: 'Exporter le projet (.kfj)', key: 'Ctrl+Maj+S', fn: saveProjectFile },
       { label: 'Ouvrir un projet (.kfj)…', fn: () => $('#fProj').click() },
       { label: 'Exporter les timings en .ass', fn: exportAss },
@@ -8385,15 +8461,15 @@ function wire() {
   buildSpeed();
 
   /* sources en ligne, montées à la première ouverture */
-  $('#more1').addEventListener('click', () => { if (!$('#ytBox').dataset.on) { $('#ytBox').dataset.on = 1; Online.mountYoutube($('#ytBox')); } });
+  $('#more1').addEventListener('toggle', () => { if ($('#more1').open && !$('#ytBox').dataset.on) { $('#ytBox').dataset.on = 1; Online.mountYoutube($('#ytBox')); } });
   Online.mountLrclib($('#lrcBox'), {
-    placeholder: 'titre et artiste', pickLabel: 'UTILISER',
+    placeholder: 'titre et artiste', pickLabel: 'Utiliser',
     initial: () => { const g = guessSongInfo(S.audioName); return [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); },
     onPick: r => useLrclibInEditor(r)
   });
-  $('#more2b').addEventListener('click', () => {
+  $('#more2b').addEventListener('toggle', () => {
     const inp = $('#lrcBox input');
-    if (inp && !inp.value) { const g = guessSongInfo(S.audioName); inp.value = [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); }
+    if ($('#more2b').open && inp && !inp.value) { const g = guessSongInfo(S.audioName); inp.value = [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); }
   });
 
   /* touche de calage — Espace reste la lecture */
@@ -8407,7 +8483,8 @@ function wire() {
   /* aide */
   $('#bHelp').onclick = () => openHelp();
   $('#bHelpClose').onclick = () => openHelp(false);
-  $('#ckHelpMode').onchange = e => setHelpMode(e.target.checked);
+  $('#ckHelpMode').onchange = e => { setHelpMode(e.target.checked); UiPrefs.set({ helpMode: e.target.checked }); };
+  if (UiPrefs.get().helpMode) setHelpMode(true);
   $('#helpPanel').onclick = e => { if (e.target.id === 'helpPanel') openHelp(false); };
   addEventListener('mouseover', helpHover, true);
 
@@ -8527,9 +8604,12 @@ function onKey(e) {
 
   /* Ctrl+S et Ctrl+E marchent partout, même le curseur dans les paroles —
      sinon c'est la boîte « Enregistrer la page » du navigateur qui s'ouvre. */
-  if (mod && !e.altKey) {
-    if (low === 's') { e.preventDefault(); if (!e.repeat) e.shiftKey ? saveProjectFile() : saveToLibrary(); return; }
-    if (low === 'e') { e.preventDefault(); if (!e.repeat) openExport(); return; }
+  if (mod && !e.altKey && (low === 's' || low === 'e')) {
+    e.preventDefault();
+    if (e.repeat) return;
+    if (S.ws === 'live') { toast('En Live, rien ne s\'enregistre ni ne s\'exporte : les morceaux restent intacts pendant le show'); return; }
+    if (low === 's') e.shiftKey ? saveProjectFile() : saveToLibrary(); else openExport();
+    return;
   }
   /* Alt+1/2/3 : espaces de travail (codes physiques : marche en AZERTY) */
   const ws = /^(?:Digit|Numpad)([123])$/.exec(e.code);
@@ -8553,6 +8633,7 @@ function onKey(e) {
   }
 
   if (S.ws === 'live') { onKeyLive(e, k, low, mod); return; }
+  if (S.ws === 'style') { onKeyStyle(e, k, low, mod); return; }
 
   /* --- le tap passe avant tout le reste quand le mode est actif --- */
   if (S.tapMode && !e.repeat && isTapKey(e) && (!mod || S.tapKey === 'ControlRight')) { e.preventDefault(); tap(); return; }
@@ -8617,7 +8698,7 @@ function onKey(e) {
   }
   if (e.repeat) return;
   switch (low) {
-    case 't': if (S.ws === 'style') Beat.tap(); else setTap(!S.tapMode); break;
+    case 't': setTap(!S.tapMode); break;
     case 'k': pause(); break;
     case 'l': S.playing ? setRate(S.rate >= 4 ? 4 : S.rate * 2) : (setRate(1), play()); break;
     case 'j': setRate(S.rate <= .25 ? .25 : (S.rate <= .5 ? .25 : (S.rate <= .75 ? .5 : .75))); if (!S.playing) play(); break;
@@ -8630,6 +8711,37 @@ function onKey(e) {
     case 'i': setEdgeAtPlayhead('in'); break;
     case 'o': setEdgeAtPlayhead('out'); break;
     case 'f': if (S.tapKey !== 'f') zoomFit(); break;
+  }
+}
+
+/* En Style, on écoute et on regarde : aucune touche ne modifie les timings. */
+function onKeyStyle(e, k, low, mod) {
+  if (mod) return;
+  switch (k) {
+    case ' ': e.preventDefault(); togglePlay(); return;
+    case 'Escape': e.preventDefault(); hideCtx(); return;
+    case 'Home': e.preventDefault(); seek(0); return;
+    case 'End': e.preventDefault(); seek(S.duration); return;
+    case 'ArrowUp': case 'ArrowDown': {
+      e.preventDefault();
+      if (!S.lines.length) return;
+      const li = clamp(S.sel.line + (k === 'ArrowDown' ? 1 : -1), 0, S.lines.length - 1);
+      selOne(li, 0);
+      const sp = lineSpan(S.lines[li]); if (sp) seek(sp[0]);
+      TL.invalidateBlocks(); return;
+    }
+    case 'ArrowLeft': case 'ArrowRight': e.preventDefault(); seek(S.cur + (k === 'ArrowRight' ? 2 : -2)); return;
+    case '+': case '=': e.preventDefault(); TL.setZoom(S.tlZoom * 1.4); return;
+    case '-': case '_': e.preventDefault(); TL.setZoom(S.tlZoom / 1.4); return;
+    case '?': openHelp(); return;
+  }
+  if (e.repeat) return;
+  switch (low) {
+    case 't': Beat.tap(); break;
+    case 'k': pause(); break;
+    case 'l': S.playing ? setRate(S.rate >= 4 ? 4 : S.rate * 2) : (setRate(1), play()); break;
+    case 'j': setRate(S.rate <= .25 ? .25 : (S.rate <= .5 ? .25 : (S.rate <= .75 ? .5 : .75))); if (!S.playing) play(); break;
+    case 'f': zoomFit(); break;
   }
 }
 
@@ -9133,6 +9245,13 @@ async function __selfTest() {
     eq(Undo.doc.undoLabel(), 'saisie des paroles', 'la frappe est annulable');
     Undo.doc.undo(); await tick();
     eq(ta.value, txt, 'Ctrl+Z remet le texte');
+
+    /* ---- 12. application de bureau : le companion embarqué répond ---- */
+    if (location.protocol === 'kf:') {
+      let health = null;
+      for (let i = 0; i < 20 && !health; i++) { health = await Online.companion(); if (!health) await new Promise(r => setTimeout(r, 250)); }
+      ok(!!health, 'companion embarqué joignable sur 127.0.0.1:17002');
+    }
   } catch (e) {
     console.error('[autotest] exception', e);
     failed.push('exception : ' + (e && e.message || e));
@@ -9160,6 +9279,19 @@ function safeBoot() {
     document.body.appendChild(d);
   }
 }
+/* Une erreur imprévue ne doit jamais rester muette : un message, une fois,
+   et la trace complète dans la console.                                      */
+const _said = new Set();
+function reportUnexpected(what, e) {
+  const msg = String(e && e.message || e || 'erreur inconnue').slice(0, 140);
+  console.error('[' + what + ']', e);
+  if (_said.has(msg) || typeof toast !== 'function') return;
+  _said.add(msg);
+  toast(`Erreur inattendue : ${msg} — détails dans la console (F12)`, true);
+}
+addEventListener('error', ev => { if (ev.error || ev.message) reportUnexpected('erreur', ev.error || ev.message); });
+addEventListener('unhandledrejection', ev => reportUnexpected('promesse', ev.reason));
+
 if (document.readyState === 'loading') addEventListener('DOMContentLoaded', safeBoot);
 else safeBoot();
 </script>

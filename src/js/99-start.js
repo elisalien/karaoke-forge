@@ -17,5 +17,18 @@ function safeBoot() {
     document.body.appendChild(d);
   }
 }
+/* Une erreur imprévue ne doit jamais rester muette : un message, une fois,
+   et la trace complète dans la console.                                      */
+const _said = new Set();
+function reportUnexpected(what, e) {
+  const msg = String(e && e.message || e || 'erreur inconnue').slice(0, 140);
+  console.error('[' + what + ']', e);
+  if (_said.has(msg) || typeof toast !== 'function') return;
+  _said.add(msg);
+  toast(`Erreur inattendue : ${msg} — détails dans la console (F12)`, true);
+}
+addEventListener('error', ev => { if (ev.error || ev.message) reportUnexpected('erreur', ev.error || ev.message); });
+addEventListener('unhandledrejection', ev => reportUnexpected('promesse', ev.reason));
+
 if (document.readyState === 'loading') addEventListener('DOMContentLoaded', safeBoot);
 else safeBoot();

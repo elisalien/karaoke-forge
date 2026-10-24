@@ -158,7 +158,7 @@ const server = http.createServer(async (req, res) => {
   try {
     switch (url.pathname) {
       case '/health':
-        send(res, 200, { ok: true, name: 'forge-companion', ytdlp: !!YTDLP, ffmpeg: !!FFMPEG, link: link.connected }, origin);
+        send(res, 200, { ok: true, name: 'forge-companion', ytdlp: !!YTDLP, ffmpeg: !!FFMPEG, link: link.connected, binDir: BIN_DIR || process.env.YT_BIN_DIR || path.join(__dirname, 'bin') }, origin);
         return;
       case '/link':
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', ...cors(origin) });

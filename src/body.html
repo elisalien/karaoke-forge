@@ -2,61 +2,58 @@
 
   <!-- ============== EN-TÊTE ============== -->
   <header id="hdr">
-    <div class="logo">KARAOKE&nbsp;FORGE</div>
-    <nav class="ws" id="wsNav">
-      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>PRÉPARER</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>.">1 PRÉPARER</button>
-      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>STYLE</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>.">2 STYLE</button>
-      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>LIVE</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>.">3 LIVE</button>
+    <div class="logo" title="Karaoke Forge"><i data-icon="mark"></i><span>Karaoke Forge</span></div>
+    <nav class="ws" id="wsNav" aria-label="Espaces de travail">
+      <button data-ws="prep" class="on" title="Audio, paroles, calage — Alt+1" data-help="<em>Préparer</em> — charger l'audio, les paroles, caler chaque syllabe. <em>Alt+1</em>."><b>1</b>Préparer</button>
+      <button data-ws="style" title="Ambiance, typo, particules, rythme — Alt+2" data-help="<em>Style</em> — ambiances, typo, couleurs, particules, décor et réactions au rythme. <em>Alt+2</em>."><b>2</b>Style</button>
+      <button data-ws="live" title="Set, écran scène, pilotage — Alt+3" data-help="<em>Live</em> — le set de la soirée, l'écran scène pour Resolume ou OBS, le pilotage au clavier. <em>Alt+3</em>."><b>3</b>Live</button>
     </nav>
     <div class="sep"></div>
-    <button id="bPlay" title="Lecture / pause — Espace" data-help="Lecture / pause. <em>Espace</em>, toujours.">▶</button>
-    <button id="bStop" title="Retour au début" data-help="Arrête et revient à 00:00.">■</button>
-    <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
-    <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    <div class="deck">
+      <button id="bPlay" class="icon" data-icon="play" aria-label="Lecture / pause" title="Lecture / pause — Espace" data-help="Lecture / pause. <em>Espace</em>, toujours."></button>
+      <button id="bStop" class="icon" data-icon="stop" aria-label="Retour au début" title="Retour au début" data-help="Arrête et revient à 00:00."></button>
+      <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
+      <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    </div>
     <div class="sep"></div>
     <div class="undo" id="undoBar">
-      <button id="bUndo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans PRÉPARER, réglages dans STYLE. <em>Ctrl+Z</em>.">↶</button>
-      <button id="bRedo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>.">↷</button>
+      <button id="bUndo" class="icon" data-icon="undo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans Préparer, réglages dans Style. <em>Ctrl+Z</em>."></button>
+      <button id="bRedo" class="icon" data-icon="redo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>."></button>
     </div>
     <div class="spacer"></div>
     <span id="saveState" data-help="Le morceau ouvert, et s'il est rangé dans la bibliothèque."></span>
-    <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque du navigateur. Il sera prêt dans <em>LIVE</em>. <em>Ctrl+S</em>.">ENREGISTRER</button>
-    <button id="bProj" data-help="Nouveau morceau, export et import de projet .kfj, timings .ass et .lrc, police.">⋯ FICHIER</button>
-    <button id="bHelp" title="Aide (F1)" data-help="Fiche complète : gestes souris, raccourcis, explication de chaque réglage.">?</button>
-    <button id="bExport" class="pri" data-help="Rendu image par image en MP4 (H.264 + audio) ou séquence PNG avec alpha. <em>Ctrl+E</em>.">⏺ EXPORTER</button>
+    <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque. Il sera prêt dans <em>Live</em>. <em>Ctrl+S</em>.">Enregistrer</button>
+    <button id="bProj" data-help="Nouveau morceau, export et import de projet .kfj, timings .ass et .lrc, police.">Fichier <i data-icon="chevron"></i></button>
+    <button id="bExport" class="pri" data-help="Rendu image par image en MP4 (H.264 + audio) ou séquence PNG avec alpha. <em>Ctrl+E</em>.">Exporter</button>
+    <button id="bHelp" class="icon" data-icon="help" aria-label="Aide" title="Aide (F1)" data-help="Fiche complète : gestes souris, raccourcis, explication de chaque réglage."></button>
   </header>
 
   <!-- ============== PRÉPARER : LE PARCOURS ============== -->
   <aside id="left" class="pane">
     <div class="body">
 
-      <!-- 1 · AUDIO -->
       <section class="step open active" id="st1">
-        <h3><span class="num"><i>1</i></span><span class="ttl">AUDIO</span><span class="sum" id="sum1"></span></h3>
+        <h3><span class="num"><i>1</i></span><span class="ttl">Audio</span><span class="sum" id="sum1"></span></h3>
         <div class="in">
           <label class="drop"><input type="file" id="fAudio" accept="audio/*">
-            <b>DÉPOSE TON AUDIO</b>mp3, wav, m4a, flac… ou clique ici</label>
+            <b>Dépose ton audio</b>mp3, wav, m4a, flac… ou clique ici</label>
           <div class="rowbtn"><button id="bUnloadAudio" hidden>Retirer l'audio</button></div>
-          <span class="more" data-box="box1" id="more1">depuis YouTube (companion)</span>
-          <div class="moreBox" id="box1"><div id="ytBox"></div></div>
-          <div class="hint">Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent sur une horloge.</div>
+          <details class="more" id="more1"><summary>Depuis YouTube (companion)</summary><div id="ytBox"></div></details>
+          <p class="hint">Pas d'audio ? Prépare quand même les paroles : en live, elles se déroulent sur une horloge.</p>
         </div>
       </section>
 
-      <!-- 2 · PAROLES -->
       <section class="step" id="st2">
-        <h3><span class="num"><i>2</i></span><span class="ttl">PAROLES</span><span class="sum" id="sum2"></span></h3>
+        <h3><span class="num"><i>2</i></span><span class="ttl">Paroles</span><span class="sum" id="sum2"></span></h3>
         <div class="in">
-          <div class="hint">Une ligne = une ligne à l'écran. Un tiret force une coupe : <b>ma-gni-fi-que</b>.</div>
+          <p class="hint">Une ligne = une ligne à l'écran. Un tiret force une coupe : <b>ma-gni-fi-que</b>.</p>
           <textarea id="lyricsText" spellcheck="false" placeholder="Colle tes paroles ici…&#10;&#10;Néon dans la nuit&#10;Je danse avec ton ombre"></textarea>
-          <div class="rowbtn"><button id="bBuild" class="pri">DÉCOUPER EN SYLLABES</button></div>
-          <span class="more" data-box="box2b" id="more2b">chercher les paroles en ligne</span>
-          <div class="moreBox" id="box2b">
-            <div class="hint">Base LRCLIB, gratuite. Les versions <b>synchronisées</b> arrivent avec le début de chaque ligne déjà posé.</div>
+          <div class="rowbtn"><button id="bBuild" class="pri">Découper en syllabes</button></div>
+          <details class="more" id="more2b"><summary>Chercher les paroles en ligne</summary>
+            <p class="hint">Base LRCLIB, gratuite. Les versions <b>synchronisées</b> arrivent avec le début de chaque ligne déjà posé.</p>
             <div id="lrcBox"></div>
-          </div>
-          <span class="more" data-box="box2" id="more2">options</span>
-          <div class="moreBox" id="box2">
+          </details>
+          <details class="more" id="more2"><summary>Options</summary>
             <div class="row wide"><label>Langue</label><select id="selLang">
               <option value="fr">Français</option><option value="en">Anglais</option>
               <option value="none">Ne pas découper</option>
@@ -64,67 +61,50 @@
             <div class="rowbtn">
               <button id="bMerge" title="Redécouper en conservant les timings déjà posés">Redécouper sans perdre les timings</button>
             </div>
-            <div class="rowbtn">
-              <input type="file" id="fAss" accept=".ass,.ssa,.lrc,.txt" hidden>
-              <button id="bImport">Importer .ass / .lrc</button>
-            </div>
-          </div>
+            <p class="hint">Timings .ass ou .lrc existants : menu <b>Fichier → Importer</b>.</p>
+          </details>
         </div>
       </section>
 
-      <!-- 3 · CALAGE -->
       <section class="step" id="st3">
-        <h3><span class="num"><i>3</i></span><span class="ttl">CALAGE</span><span class="sum" id="sum3"></span></h3>
+        <h3><span class="num"><i>3</i></span><span class="ttl">Calage</span><span class="sum" id="sum3"></span></h3>
         <div class="in">
-          <button id="bTap" class="big hero" data-help="La lecture démarre un peu avant, puis tu frappes la touche de calage au début de chaque syllabe chantée. Ralentis la musique si ça va trop vite.">◈ CALER EN ÉCOUTANT</button>
-          <div class="hint" style="padding-top:8px">
-            Frappe <span class="kbd" id="tapKeyHint">F</span> au début de chaque syllabe.
-            <b>Tiens-la</b> sur la dernière syllabe d'une ligne pour garder la note à l'écran.
-            <span class="kbd">Retour</span> annule la dernière. <b>Ralentis</b> avec les boutons de vitesse en haut.
-          </div>
+          <button id="bTap" class="big hero" data-help="La lecture démarre un peu avant, puis tu frappes la touche de calage au début de chaque syllabe chantée. Ralentis la musique si ça va trop vite.">Caler en écoutant</button>
+          <p class="hint">Frappe <span class="kbd" id="tapKeyHint">F</span> au début de chaque syllabe, <b>tiens-la</b> sur la dernière d'une ligne. <span class="kbd">Retour</span> annule la dernière, les boutons de vitesse en haut ralentissent.</p>
           <div class="rowbtn">
             <button id="bTapFrom" title="Reprendre le calage à partir de la syllabe sélectionnée (clic sur une syllabe dans la timeline ou à l'étape 4)">Reprendre à la syllabe choisie</button>
+            <select id="tapKey" title="Touche de calage" style="flex:0 0 auto"></select>
           </div>
-          <div class="rowbtn">
-            <select id="tapKey" title="Touche de calage"></select>
-          </div>
-          <span class="more" data-box="box3" id="more3">autres méthodes</span>
-          <div class="moreBox" id="box3">
-            <div class="hint">Cale seulement le début et la fin d'une ligne — ou importe des paroles synchronisées — puis&nbsp;:</div>
-            <div class="rowbtn"><button id="bOnsetSnap" data-help="Analyse l'audio et pose les syllabes des lignes déjà bornées sur les vrais départs de notes. Entièrement local et instantané.">♫ Poser sur les attaques</button></div>
-            <div class="rowbtn"><button id="bDistrib" data-help="Répartit les syllabes régulièrement entre le début et la fin de la ligne, au prorata de leur longueur.">↔ Répartir régulièrement</button></div>
+          <details class="more" id="more3"><summary>Autres méthodes</summary>
+            <p class="hint">Cale seulement le début et la fin d'une ligne — ou importe des paroles synchronisées — puis&nbsp;:</p>
+            <div class="rowbtn"><button id="bOnsetSnap" data-help="Analyse l'audio et pose les syllabes des lignes déjà bornées sur les vrais départs de notes. Entièrement local et instantané.">Poser sur les attaques</button></div>
+            <div class="rowbtn"><button id="bDistrib" data-help="Répartit les syllabes régulièrement entre le début et la fin de la ligne, au prorata de leur longueur.">Répartir régulièrement</button></div>
             <div class="row wide" data-help="Si tes frappes tombent systématiquement en retard, mets ici ce retard en millisecondes : il sera retiré de chaque frappe. La latence de la carte son est déjà compensée."><label>Décalage frappe</label><input type="number" id="tapOffset" step="5" value="0" title="millisecondes"></div>
-          </div>
+          </details>
         </div>
       </section>
 
-      <!-- 4 · AJUSTER -->
       <section class="step" id="st4">
-        <h3><span class="num"><i>4</i></span><span class="ttl">AJUSTER</span><span class="sum" id="sum4"></span></h3>
+        <h3><span class="num"><i>4</i></span><span class="ttl">Ajuster</span><span class="sum" id="sum4"></span></h3>
         <div class="in">
-          <div class="rowbtn" style="margin-top:0">
-            <button id="bLoop" data-help="Rejoue la ligne sélectionnée en boucle : tu ajustes en écoutant le résultat tourner.">↻ BOUCLER LA LIGNE</button>
-            <button id="bSnapSyl" style="flex:0 0 auto" title="Aimanter la sélection sur l'attaque audio la plus proche" data-help="Décale les syllabes sélectionnées jusqu'au départ de note le plus proche détecté dans l'audio.">♫</button>
-          </div>
-          <div class="rowbtn">
-            <button id="bClearL" class="dgr" title="Le texte reste, seul le placement est effacé" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la syllabe choisie ».">✕ EFFACER LE CALAGE DE LA PHRASE</button>
-          </div>
-          <div class="hint">
-            Clic sur une syllabe pour t'y placer · <span class="kbd">Alt</span>+clic la coupe en deux<br>
-            <span class="kbd">Maj</span>+<span class="kbd">←</span><span class="kbd">→</span> décale de 10&nbsp;ms · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> annule
+          <p class="hint">Clic sur une syllabe pour t'y placer · <span class="kbd">Alt</span>+clic la coupe en deux · <span class="kbd">Maj</span>+<span class="kbd">←</span><span class="kbd">→</span> décale de 10&nbsp;ms · <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> annule.</p>
+          <div class="sylHead">
+            <span id="sylWhich">—</span>
+            <button id="sylAll" class="tgl" title="Afficher toutes les lignes, pas seulement celle sélectionnée">Toutes les lignes</button>
           </div>
           <div id="sylList"></div>
+          <div class="rowbtn">
+            <button id="bClearL" class="dgr" title="Le texte reste, seul le placement est effacé" data-help="Remet à zéro le placement de la phrase sélectionnée : ses syllabes quittent la timeline, le texte reste intact. Tu peux ensuite la recaler seule avec « Reprendre à la syllabe choisie ».">Effacer le calage de la phrase</button>
+          </div>
         </div>
       </section>
 
-      <!-- 5 · RANGER -->
       <section class="step" id="st5">
-        <h3><span class="num"><i>5</i></span><span class="ttl">RANGER</span><span class="sum" id="sum5"></span></h3>
+        <h3><span class="num"><i>5</i></span><span class="ttl">Ranger</span><span class="sum" id="sum5"></span></h3>
         <div class="in">
-          <div class="hint">Range le morceau — paroles, calage, style et audio — dans la bibliothèque du navigateur. Il sera prêt dans <b>3 LIVE</b>, même hors ligne.</div>
-          <div class="rowbtn"><button id="bSaveLib" class="big hero">ENREGISTRER DANS LA BIBLIOTHÈQUE</button></div>
-          <div class="rowbtn"><button id="bSaveAs">Enregistrer comme nouveau morceau…</button></div>
-          <div class="hint">Pour une copie en fichier : <b>⋯ FICHIER → Exporter le projet (.kfj)</b>.</div>
+          <p class="hint">Le morceau — paroles, calage, style et audio — part dans la bibliothèque. Il sera prêt dans <b>Live</b>, même hors ligne.</p>
+          <div class="rowbtn"><button id="bSaveLib" class="big hero">Enregistrer dans la bibliothèque</button></div>
+          <p class="hint"><a href="#" id="bSaveAs">Enregistrer comme nouveau morceau…</a> · copie en fichier : <b>Fichier → Exporter le projet</b>.</p>
         </div>
       </section>
 
@@ -137,63 +117,68 @@
       <canvas id="glc"></canvas>
       <div id="stageInfo">—</div>
       <div id="stageBadge">—</div>
-      <div id="dropHint"><b>DÉPOSE UN FICHIER AUDIO</b><span>ou commence par les paroles, étape 2</span></div>
+      <div id="dropHint"><b>Dépose un fichier audio</b><span>ou commence par les paroles, étape 2</span></div>
       <div id="tapHud">
         <div class="tprog"><i id="tapBar"></i></div>
         <div class="tcount" id="tapCount">0 / 0</div>
         <div class="tprev" id="tapPrev"></div>
         <div class="tcur" id="tapCur">—</div>
         <div class="tnext" id="tapNext"></div>
-        <button class="tbtn" id="tapBtn">FRAPPE <b id="tapKeyBig">F</b></button>
+        <button class="tbtn" id="tapBtn">Frappe <b id="tapKeyBig">F</b></button>
         <div class="tfoot"><span class="kbd">Retour</span> annuler · <span class="kbd">Échap</span> sortir · vitesse <b id="tapRate">1×</b></div>
       </div>
-      <div id="pausedNote"><b>SORTIE SUR L'ÉCRAN SCÈNE</b><span>L'aperçu est en pause pour épargner le GPU.</span><button id="bPreviewOn">AFFICHER L'APERÇU ICI</button></div>
+      <div id="pausedNote"><b>Sortie sur l'écran scène</b><span>L'aperçu est en pause pour épargner le GPU.</span><button id="bPreviewOn">Afficher l'aperçu ici aussi</button></div>
     </div>
-    <div id="sceneWait"><b>ÉCRAN SCÈNE</b><span>En attente de la fenêtre de contrôle…<br>Double-clic ou F : plein écran</span></div>
+    <div id="sceneWait"><b>Écran scène</b><span>En attente de la fenêtre de contrôle…<br>Double-clic ou F : plein écran</span></div>
   </section>
 
   <!-- ============== STYLE ============== -->
   <aside id="right" class="pane">
     <div class="top">
-      <div class="lbl">AMBIANCES</div>
+      <div class="lbl">Ambiances</div>
       <div class="presets" id="presets"></div>
       <div class="modeRow">
-        <button id="mSimple" class="on" data-help="N'affiche que l'essentiel : une trentaine de réglages qui couvrent la majorité des besoins.">SIMPLE</button>
-        <button id="mExpert" data-help="Ouvre la centaine de réglages : physique des particules, post-traitement, mise en page fine.">EXPERT</button>
+        <button id="mSimple" class="on" data-help="N'affiche que l'essentiel : une trentaine de réglages qui couvrent la majorité des besoins.">Simple</button>
+        <button id="mExpert" data-help="Ouvre la centaine de réglages : physique des particules, post-traitement, mise en page fine.">Expert</button>
       </div>
     </div>
-    <div class="tabs" id="tabsR">
-      <button data-p="pgTxt" class="on">TEXTE</button>
-      <button data-p="pgFill">COULEUR</button>
-      <button data-p="pgPar">PARTICULES</button>
-      <button data-p="pgFx">DÉCOR</button>
-      <button data-p="tabBeat">RYTHME</button>
+    <div class="tabs" id="tabsR" role="tablist">
+      <button data-p="pgTxt" class="on">Texte</button>
+      <button data-p="pgFill">Couleur</button>
+      <button data-p="pgPar">Particules</button>
+      <button data-p="pgFx">Décor</button>
+      <button data-p="pgBeat">Rythme</button>
     </div>
     <div class="body">
       <div class="tabpage on" id="pgTxt"></div>
       <div class="tabpage" id="pgFill"></div>
       <div class="tabpage" id="pgPar"></div>
       <div class="tabpage" id="pgFx"></div>
-      <div class="tabpage" id="tabBeat"><div class="grp"><h3>TEMPO</h3><div class="grpin" id="beatTools"></div></div><div id="pgBeat"></div></div>
+      <div class="tabpage" id="pgBeat"></div>
     </div>
   </aside>
 
   <!-- ============== TIMELINE ============== -->
   <footer id="tl">
     <div id="tlHd">
-      <div class="tools">
-        <button id="tV" class="on" title="Sélection (V)" data-help="Outil <em>Sélection</em> — clic pour sélectionner, glisser le corps d'un bloc pour le déplacer, ses bords pour changer début et fin. Glisser dans le vide trace un lasso.">▣</button>
-        <button id="tC" title="Lame (C)" data-help="Outil <em>Lame</em> — clique sur une syllabe pour la couper en deux à l'endroit exact.">✂</button>
+      <div class="tools" role="group" aria-label="Outils">
+        <button id="tV" class="icon on" data-icon="select" aria-label="Sélection" title="Sélection (V)" data-help="Outil <em>Sélection</em> — clic pour sélectionner, glisser le corps d'un bloc pour le déplacer, ses bords pour changer début et fin. Glisser dans le vide trace un lasso."></button>
+        <button id="tC" class="icon" data-icon="razor" aria-label="Lame" title="Lame (C)" data-help="Outil <em>Lame</em> — clique sur une syllabe pour la couper en deux à l'endroit exact."></button>
       </div>
       <div class="sep"></div>
-      <button id="bZoomOut" title="Dézoomer (−)">−</button>
-      <button id="bZoomIn" title="Zoomer (+)">+</button>
-      <button id="bZoomFit" title="Voir tout le morceau (F)">VOIR TOUT</button>
+      <div class="tools" role="group" aria-label="Zoom">
+        <button id="bZoomOut" class="icon" data-icon="zoomOut" aria-label="Dézoomer" title="Dézoomer (−)"></button>
+        <button id="bZoomIn" class="icon" data-icon="zoomIn" aria-label="Zoomer" title="Zoomer (+)"></button>
+        <button id="bZoomFit" title="Voir tout le morceau (F)">Tout voir</button>
+      </div>
       <div class="sep"></div>
-      <button id="ckFollow" class="tgl on" title="La vue suit la lecture" data-help="La vue suit automatiquement la tête de lecture pendant le jeu.">SUIVRE</button>
-      <button id="ckSnap" class="tgl on" title="Aimantation (S)" data-help="Les bords collent à la tête de lecture, aux syllabes voisines et à la grille 10 ms. <em>Alt</em> désactive le temps d'un glissé.">AIMANT</button>
-      <button id="ckRipple" class="tgl" title="Décaler aussi tout ce qui suit (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">DÉCALER LA SUITE</button>
-      <button id="ckScrub" class="tgl on" title="Entendre le son pendant qu'on déplace la tête de lecture" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">♪ SON</button>
+      <button id="ckFollow" class="tgl on" title="La vue suit la lecture" data-help="La vue suit automatiquement la tête de lecture pendant le jeu. Si tu défiles toi-même pendant la lecture, le suivi se met en pause jusqu'au prochain déplacement de la tête.">Suivre</button>
+      <button id="ckSnap" class="tgl on" title="Aimantation (S)" data-help="Les bords collent à la tête de lecture, aux syllabes voisines, aux attaques détectées dans l'audio, puis à la grille 10 ms. <em>Alt</em> désactive le temps d'un glissé.">Aimant</button>
+      <button id="ckRipple" class="tgl" title="Décaler aussi tout ce qui suit (R)" data-help="Déplacer une syllabe ou une ligne décale d'autant tout ce qui suit.">Décaler la suite</button>
+      <button id="ckScrub" class="tgl on" title="Entendre le son pendant qu'on déplace la tête de lecture" data-help="Fait entendre un court extrait sous le curseur pendant que tu déplaces la tête de lecture.">Son</button>
+      <div class="sep"></div>
+      <button id="bLoop" class="tgl" data-icon="loop" title="Boucler la ligne sélectionnée (B)" data-help="Rejoue la ligne sélectionnée en boucle : tu ajustes en écoutant le résultat tourner.">Boucle</button>
+      <button id="bSnapSyl" data-icon="magnet" title="Aimanter la sélection sur l'attaque audio la plus proche" data-help="Décale les syllabes sélectionnées jusqu'au départ de note le plus proche détecté dans l'audio.">Sur l'attaque</button>
       <div class="sep"></div>
       <span class="lbl" id="tlSel">—</span>
       <div class="spacer"></div>
@@ -207,99 +192,87 @@
   <!-- ============== LIVE ============== -->
   <aside id="liveLeft" class="pane">
     <div class="body">
-      <div class="lvHead"><b>SET</b><span id="setCount"></span></div>
+      <div class="lvHead"><b>Set</b><span id="setCount"></span></div>
       <div id="setList" class="list"></div>
       <label class="chk" data-help="Coché : changer de morceau garde l'ambiance et le fond en cours — un look constant pour toute la soirée. Décoché : chaque morceau reprend son propre style."><input type="checkbox" id="lvKeepStyle" checked><i></i>Garder l'ambiance en cours entre les morceaux</label>
-      <details class="lvBox" open><summary>BIBLIOTHÈQUE <span id="libCount"></span></summary>
-        <input type="search" id="libFilter" placeholder="filtrer…">
+      <details class="lvBox" open><summary>Bibliothèque <span id="libCount"></span></summary>
+        <input type="search" id="libFilter" placeholder="Filtrer…" aria-label="Filtrer la bibliothèque">
         <div id="libList" class="list"></div>
       </details>
-      <details class="lvBox"><summary>CHERCHER DES PAROLES EN LIGNE</summary>
-        <div class="hint">Ajoute directement au set. Sans audio, le morceau se joue en <b>son extérieur</b>.</div>
+      <details class="lvBox"><summary>Chercher des paroles en ligne</summary>
+        <p class="hint">Ajoute directement au set. Sans audio, le morceau se joue en <b>son extérieur</b>.</p>
         <div id="lvLrc"></div>
       </details>
     </div>
   </aside>
 
   <section id="liveLines" class="pane">
-    <div class="lvHead"><b>PAROLES</b><span id="lvLineInfo"></span></div>
+    <div class="lvHead"><b>Paroles</b><span id="lvLineInfo"></span></div>
     <div id="lvLines" class="list"></div>
   </section>
 
   <aside id="liveRight" class="pane">
     <div class="body">
-      <div class="grp"><h3>SORTIE</h3><div class="grpin">
-        <button id="lvScene" class="big hero" data-help="Ouvre une fenêtre qui n'affiche que l'image. Glisse-la sur le second écran, double-clic pour le plein écran, puis capture-la dans Resolume ou OBS. <em>O</em>.">OUVRIR L'ÉCRAN SCÈNE ↗</button>
-        <div class="lvStatus"><span id="sceneState">○ écran scène fermé</span></div>
+      <div class="grp"><h3>Sortie</h3><div class="grpin">
+        <button id="lvScene" class="big hero" data-icon="scene" data-help="Ouvre une fenêtre qui n'affiche que l'image. Glisse-la sur le second écran, double-clic pour le plein écran, puis capture-la dans Resolume ou OBS. <em>O</em>.">Ouvrir l'écran scène</button>
+        <div class="lvStatus"><span id="sceneState">Écran scène fermé</span></div>
         <label class="chk"><input type="checkbox" id="lvPreview"><i></i>Garder l'aperçu ici aussi (plus de GPU)</label>
-        <div class="lbl2">FOND</div>
-        <div class="segRow" id="lvKey" data-help="<em>AMBIANCE</em> garde le décor du style. Les couleurs donnent un fond uni pour l'incrustation (chroma key) : grille, vignette, grain et aberration sont coupés, puis restaurés au retour. <em>K</em> bascule vert / ambiance.">
-          <button data-key="" class="on">AMBIANCE</button><button data-key="#00b140" class="kGreen">VERT</button><button data-key="#0047ff" class="kBlue">BLEU</button><button data-key="#000000" class="kBlack">NOIR</button>
+        <div class="lbl2">Fond</div>
+        <div class="segRow" id="lvKey" data-help="<em>Ambiance</em> garde le décor du style. Les couleurs donnent un fond uni pour l'incrustation (chroma key) : grille, vignette, grain et aberration sont coupés, puis restaurés au retour. <em>K</em> bascule vert / ambiance.">
+          <button data-key="" class="on">Ambiance</button><button data-key="#00b140" class="kGreen">Vert</button><button data-key="#0047ff" class="kBlue">Bleu</button><button data-key="#000000" class="kBlack">Noir</button>
         </div>
-        <div class="rowbtn"><button id="lvBlack" class="big" data-help="Masque les paroles d'un coup, le fond reste. <em>N</em>.">■ MASQUER LE TEXTE (N)</button></div>
+        <div class="rowbtn"><button id="lvBlack" class="big" data-help="Masque les paroles d'un coup, le fond reste. <em>N</em>.">Masquer le texte</button></div>
       </div></div>
 
-      <div class="grp"><h3>LECTURE</h3><div class="grpin">
-        <div class="segRow" id="lvSource" data-help="<em>AUDIO DU MORCEAU</em> : l'app joue le son rangé avec le morceau. <em>SON EXTÉRIEUR</em> : la musique vient d'ailleurs, les paroles se déroulent sur l'horloge et tu les recales à la main. <em>X</em>.">
-          <button data-src="audio" class="on">AUDIO DU MORCEAU</button><button data-src="ext">SON EXTÉRIEUR</button>
+      <div class="grp"><h3>Lecture</h3><div class="grpin">
+        <div class="segRow" id="lvSource" data-help="<em>Audio du morceau</em> : l'app joue le son rangé avec le morceau. <em>Son extérieur</em> : la musique vient d'ailleurs, les paroles se déroulent sur l'horloge et tu les recales à la main. <em>X</em>.">
+          <button data-src="audio" class="on">Audio du morceau</button><button data-src="ext">Son extérieur</button>
         </div>
         <div class="transport">
-          <button id="lvPrev" title="Début de ligne / ligne précédente (←)">⏮</button>
-          <button id="lvPlay" class="hero" title="Lecture / pause (Espace)">▶</button>
-          <button id="lvNext" title="Ligne suivante (→)">⏭</button>
+          <button id="lvPrev" class="icon" data-icon="prev" aria-label="Ligne précédente" title="Début de ligne / ligne précédente (←)"></button>
+          <button id="lvPlay" class="icon hero" data-icon="play" aria-label="Lecture / pause" title="Lecture / pause (Espace)"></button>
+          <button id="lvNext" class="icon" data-icon="next" aria-label="Ligne suivante" title="Ligne suivante (→)"></button>
         </div>
-        <div class="segRow" id="lvStep" data-help="<em>CONTINU</em> : les paroles défilent seules. <em>LIGNE PAR LIGNE</em> : chaque ligne se joue puis s'arrête, → lance la suivante. <em>L</em>.">
-          <button data-step="flow" class="on">CONTINU</button><button data-step="line">LIGNE PAR LIGNE</button>
+        <div class="segRow" id="lvStep" data-help="<em>Continu</em> : les paroles défilent seules. <em>Ligne par ligne</em> : chaque ligne se joue puis s'arrête, → lance la suivante. <em>L</em>.">
+          <button data-step="flow" class="on">Continu</button><button data-step="line">Ligne par ligne</button>
         </div>
-        <div class="lbl2">VITESSE</div>
+        <div class="lbl2">Vitesse</div>
         <div class="segRow tight" id="lvRate"></div>
-        <div class="lbl2">RECALER LES PAROLES</div>
+        <div class="lbl2">Recaler les paroles</div>
         <div class="segRow tight">
-          <button id="lvNudgeM" title="Paroles en retard de 100 ms (↓)">−0,1 s ↓</button>
-          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s ↑</button></div>
-        <div class="hint" id="lvHint"></div>
+          <button id="lvNudgeM" title="Paroles en retard de 100 ms (↓)">−0,1 s</button>
+          <button id="lvNudgeP" title="Paroles en avance de 100 ms (↑)">+0,1 s</button></div>
+        <p class="hint" id="lvHint"></p>
       </div></div>
 
-      <div class="grp"><h3>RYTHME</h3><div class="grpin">
+      <div class="grp"><h3>Rythme</h3><div class="grpin">
         <div id="lvBeat"></div>
         <label class="chk"><input type="checkbox" id="lvBeatOn"><i></i>Le texte et les particules réagissent au rythme (R)</label>
       </div></div>
 
-      <div class="grp fold"><h3>RACCOURCIS LIVE</h3><div class="grpin">
-        <table class="keys">
-          <tr><td><span class="kbd">Espace</span></td><td>lecture / pause</td></tr>
-          <tr><td><span class="kbd">←</span> <span class="kbd">→</span></td><td>ligne précédente / suivante</td></tr>
-          <tr><td><span class="kbd">↑</span> <span class="kbd">↓</span></td><td>paroles en avance / en retard de 100 ms</td></tr>
-          <tr><td><span class="kbd">1</span>…<span class="kbd">9</span></td><td>charger le morceau n° du set</td></tr>
-          <tr><td><span class="kbd">Entrée</span></td><td>morceau suivant du set (<span class="kbd">Maj</span> : précédent)</td></tr>
-          <tr><td><span class="kbd">T</span></td><td>tap tempo</td></tr>
-          <tr><td><span class="kbd">N</span></td><td>masquer / réafficher le texte</td></tr>
-          <tr><td><span class="kbd">K</span></td><td>fond vert / ambiance</td></tr>
-          <tr><td><span class="kbd">L</span> · <span class="kbd">X</span> · <span class="kbd">R</span></td><td>ligne par ligne · son extérieur · rythme</td></tr>
-          <tr><td><span class="kbd">O</span></td><td>ouvrir l'écran scène</td></tr>
-        </table>
-      </div></div>
+      <p class="hint center"><span class="kbd">F1</span> ou <span class="kbd">?</span> : tous les raccourcis du live.</p>
     </div>
   </aside>
 </div>
 
 <div id="toast"></div>
-<div id="ctx"></div>
-<div id="helpBar"><b>AIDE</b><span>Survole n'importe quel élément pour savoir ce qu'il fait.</span></div>
+<div id="ctx" role="menu"></div>
+<div id="helpBar"><b>Aide</b><span>Survole n'importe quel élément pour savoir ce qu'il fait.</span></div>
 <div id="helpPanel"><div id="helpBox">
   <header>
-    <h2>AIDE — KARAOKE FORGE</h2>
+    <h2>Aide</h2>
     <div class="spacer"></div>
-    <label class="chk" style="color:var(--cy)"><input type="checkbox" id="ckHelpMode"><i></i>MODE SURVOL</label>
-    <button id="bHelpClose">FERMER</button>
+    <label class="chk"><input type="checkbox" id="ckHelpMode"><i></i>Mode survol</label>
+    <button id="bHelpClose">Fermer</button>
   </header>
   <div id="helpBody"></div>
 </div></div>
-<div id="modal"><div id="modalBox">
-  <h2 id="modalTitle">EXPORT</h2>
+<div id="modal" role="dialog" aria-modal="true"><div id="modalBox">
+  <h2 id="modalTitle">Export</h2>
   <div id="modalBody"></div>
-  <div id="modalFoot"><button id="mCancel">ANNULER</button><button id="mOk" class="pri">OK</button></div>
+  <div id="modalFoot"><button id="mCancel">Annuler</button><button id="mOk" class="pri">OK</button></div>
 </div></div>
 
+<input type="file" id="fAss" accept=".ass,.ssa,.lrc,.txt" hidden>
 <input type="file" id="fFont" accept=".ttf,.otf,.woff,.woff2" hidden>
 <input type="file" id="fProj" accept=".kfj,.json" hidden>

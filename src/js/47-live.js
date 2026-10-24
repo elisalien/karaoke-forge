@@ -13,7 +13,7 @@ const LIVE_RATES = [.9, .95, 1, 1.05, 1.1, 1.2];
 const KEY_PARAMS = ['bgMode', 'bgC1', 'gridOn', 'vign', 'grain', 'scanAmt', 'chroma', 'glitchAmt'];
 
 const Live = {
-  step: 'flow', keyColor: '', keyPrev: null, lastLine: -2, lastBeatN: null,
+  step: 'flow', keyColor: '', keyPrev: null, leadBase: null, lastLine: -2, lastBeatN: null,
 
   init() {
     $('#lvScene').onclick = () => Scene.open();
@@ -38,11 +38,10 @@ const Live = {
     }
     $('#libFilter').oninput = () => this.renderLibrary();
     Online.mountLrclib($('#lvLrc'), {
-      placeholder: 'titre et artiste', pickLabel: '+ SET',
+      placeholder: 'titre et artiste', pickLabel: '+ Set',
       onPick: (r, b) => this.addFromWeb(r, b)
     });
     mountBeatTools($('#lvBeat'));
-    mountBeatTools($('#beatTools'));
     Lib.load();
     this.transportChanged(); this.rateChanged(); this.beatChanged();
   },
@@ -77,7 +76,7 @@ const Live = {
       row.innerHTML = `<span class="idx">${i + 1}</span><div class="rMain"><b>${esc(c.title)}</b><span>${esc(c.artist)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       for (const [lbl, tip, fn] of [['↑', 'Monter', () => Lib.moveInSet(i, -1)], ['↓', 'Descendre', () => Lib.moveInSet(i, 1)], ['✕', 'Retirer du set', () => Lib.removeFromSet(i)]]) {
-        const b = document.createElement('button'); b.textContent = lbl; b.title = tip;
+        const b = document.createElement('button'); b.textContent = lbl; b.title = tip; b.setAttribute('aria-label', tip);
         b.onclick = ev => { ev.stopPropagation(); fn(); };
         tools.appendChild(b);
       }
@@ -99,15 +98,16 @@ const Live = {
       row.innerHTML = `<div class="rMain"><b>${esc(c.title)}</b><span>${esc(sub)}</span></div>${badges(c)}`;
       const tools = document.createElement('span'); tools.className = 'tools';
       const inSet = Lib.setlist.includes(c.id);
-      const add = document.createElement('button'); add.textContent = inSet ? '✓' : '+ SET'; add.disabled = inSet;
+      const add = document.createElement('button'); add.textContent = inSet ? 'Dans le set' : '+ Set'; add.disabled = inSet;
       add.title = 'Ajouter au set'; add.onclick = ev => { ev.stopPropagation(); Lib.addToSet(c.id); };
-      const edit = document.createElement('button'); edit.textContent = 'ÉDITER'; edit.title = 'Ouvrir dans PRÉPARER';
+      const edit = document.createElement('button'); edit.textContent = 'Éditer'; edit.title = 'Ouvrir dans Préparer';
       edit.onclick = async ev => { ev.stopPropagation(); if (await openSong(c.id)) setWorkspace('prep'); };
-      const del = document.createElement('button'); del.textContent = '✕'; del.title = 'Supprimer de la bibliothèque'; del.className = 'dgr';
+      const del = document.createElement('button'); del.textContent = 'Supprimer'; del.title = 'Supprimer définitivement de la bibliothèque'; del.className = 'dgr';
       del.onclick = async ev => {
         ev.stopPropagation();
-        if (!(await modal({ title: 'SUPPRIMER ?', body: `<div class="hint big">« <b>${esc(c.title)}</b> » sera supprimé de la bibliothèque, avec son audio et son calage. Irréversible.</div>`, ok: 'SUPPRIMER' }))) return;
-        await Lib.remove(c.id);
+        if (!(await modal({ title: 'Supprimer ce morceau ?', body: `<div class="hint big">« <b>${esc(c.title)}</b> » sera supprimé de la bibliothèque, avec son audio et son calage. Irréversible.</div>`, ok: 'Supprimer' }))) return;
+        try { await Lib.remove(c.id); }
+        catch (e) { toast('Suppression impossible : ' + (e.message || e), true); return; }
         if (S.song.id === c.id) { S.song.id = null; Doc.touch(); }
         toast('Morceau supprimé');
       };
@@ -116,7 +116,7 @@ const Live = {
       row.onclick = e => { if (e.detail < 2) this.cue(c.id); };
       libHost.appendChild(row);
     }
-    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>1 PRÉPARER</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
+    if (!Lib.songs.length) libHost.innerHTML = '<div class="hint">Vide pour l\'instant. Dans <b>Préparer</b>, <b>Ctrl+S</b> range le morceau ouvert ici.</div>';
     $('#libCount').textContent = Lib.songs.length ? `(${Lib.songs.length})` : '';
   },
 
@@ -125,6 +125,7 @@ const Live = {
       const keep = $('#lvKeepStyle').checked;
       const key = this.keyColor;
       if (!(await openSong(id, { keepStyle: keep }))) return;
+      this.leadBase = null;
       if (key && !keep) { this.keyPrev = null; this.setKey(key); }
       this.setSource(S.buffer ? 'audio' : 'ext', true);
       this.lastLine = -2;
@@ -277,14 +278,18 @@ const Live = {
       décale l'affichage (sans toucher au son, qui ne doit pas hoqueter). */
   nudge(d) {
     if (S.extClock || !S.buffer) seek(now() + d);
-    else { P.fillLead = clamp(P.fillLead + d * 1000, -2000, 2000); syncPanels(); docChanged(); requestRender(); }
+    else {
+      // un recalage de soirée : il ne doit pas s'enregistrer dans le morceau
+      if (this.leadBase == null) this.leadBase = P.fillLead;
+      P.fillLead = clamp(P.fillLead + d * 1000, -2000, 2000); syncPanels(); docChanged(); requestRender();
+    }
     toast((d > 0 ? 'Paroles en avance de ' : 'Paroles en retard de ') + Math.abs(d * 1000) + ' ms');
   },
 
   toggleBlack() {
     S.blackout = !S.blackout;
     $('#lvBlack').classList.toggle('on', S.blackout);
-    $('#lvBlack').textContent = S.blackout ? '■ TEXTE MASQUÉ — N POUR RÉAFFICHER' : '■ MASQUER LE TEXTE (N)';
+    $('#lvBlack').textContent = S.blackout ? 'Texte masqué — N pour réafficher' : 'Masquer le texte';
     if (Scene.isOpen()) Scene.sendDoc();
     requestRender();
   },
@@ -307,7 +312,14 @@ const Live = {
       d'incrustation du live (vert, bleu, noir) est un état de soirée, pas
       un style — sans ce filtre, Ctrl+S rangeait le fond vert dans le morceau. */
   docParams() {
-    return this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
+    const p = this.keyPrev ? { ...P, ...this.keyPrev } : { ...P };
+    if (this.leadBase != null) p.fillLead = this.leadBase;
+    return p;
+  },
+  /** En quittant le live ou en changeant de morceau, le recalage de soirée s'oublie. */
+  resetLead() {
+    if (this.leadBase == null) return;
+    P.fillLead = this.leadBase; this.leadBase = null; syncPanels(); requestRender();
   },
 
   toggleBeat() {
@@ -317,7 +329,7 @@ const Live = {
   },
 
   transportChanged() {
-    const b = $('#lvPlay'); if (b) b.textContent = S.playing ? '❚❚' : '▶';
+    const b = $('#lvPlay'); if (b) b.innerHTML = icon(S.playing ? 'pause' : 'play');
   },
   rateChanged() { $$('#lvRate button').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.r - S.rate) < 1e-6)); },
   beatChanged(flash) {
@@ -334,17 +346,17 @@ function mountBeatTools(host) {
       <div class="bpmRow"><input type="number" class="bpmIn" min="40" max="240" step="0.1" title="Tempo"><span>BPM</span>
         <span class="beatDots"><i></i><i></i><i></i><i></i></span></div>
       <div class="segRow tight src">
-        <button data-bsrc="song" title="La grille suit le morceau (préparation, export)">MORCEAU</button>
-        <button data-bsrc="tap" title="Tempo frappé ou saisi, calé sur l'instant">TAP</button>
-        <button data-bsrc="link" title="Ableton Link, via le companion et Carabiner">LINK</button>
+        <button data-bsrc="song" title="La grille suit le morceau (préparation, export)">Morceau</button>
+        <button data-bsrc="tap" title="Tempo frappé ou saisi, calé sur l'instant">Tap</button>
+        <button data-bsrc="link" title="Ableton Link, via le companion et Carabiner">Link</button>
       </div>
       <div class="segRow tight">
-        <button class="bTap hero" title="Frappe au moins deux fois en rythme — touche T">TAP</button>
+        <button class="bTap hero" title="Frappe au moins deux fois en rythme — touche T">Tap</button>
         <button data-bk="0.5" title="Tempo divisé par deux">÷2</button>
         <button data-bk="2" title="Tempo doublé">×2</button>
-        <button class="bResync" title="Le temps, c'est maintenant">CALER</button>
+        <button class="bResync" title="Le temps, c'est maintenant">Caler</button>
       </div>
-      <div class="rowbtn"><button class="bDetect" title="Cherche le tempo dans l'audio du morceau">♫ DÉTECTER DANS L'AUDIO</button></div>
+      <div class="rowbtn"><button class="bDetect" title="Cherche le tempo dans l'audio du morceau">Détecter dans l'audio</button></div>
       <div class="hint linkState"></div>
     </div>`;
   const inp = $('.bpmIn', host);

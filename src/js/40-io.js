@@ -162,7 +162,7 @@ function setDocument(d) {
   if (d.font && d.font.data) installFont(d.font.name, d.font.data).catch(() => toast('Police du morceau illisible', true));
   else if (P.fontFamily === '__custom__' && !S.customFont) {
     P.fontFamily = FONTS[1][0]; syncPanels();
-    toast('Police personnalisée absente — Impact en attendant, recharge-la par ⋯ FICHIER', true);
+    toast('Police personnalisée absente — Impact en attendant, recharge-la par le menu Fichier', true);
   }
   S.lines = cleanLines(d.lines || []);
   $('#lyricsText').value = d.lyrics != null ? d.lyrics : S.lines.map(L => L.raw).join('\n');
@@ -200,9 +200,9 @@ async function confirmDiscard(what) {
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (!Doc.linesDirty || !timed) return true;
   return modal({
-    title: 'TRAVAIL NON ENREGISTRÉ',
+    title: 'Travail non enregistré',
     body: `<div class="hint big">${esc(what)} va remplacer <b>${timed} syllabes calées</b> qui ne sont pas dans la bibliothèque.<br><br>
       <b>Ctrl+S</b> les y range. Continuer quand même ?</div>`,
-    ok: 'CONTINUER', cancel: 'ANNULER'
+    ok: 'Continuer', cancel: 'Annuler'
   });
 }

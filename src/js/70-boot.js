@@ -3,7 +3,7 @@ const WORKSPACES = ['prep', 'style', 'live'];
 
 function boot() {
   buildPresets();
-  setUiMode('simple');
+  setUiMode(UiPrefs.get().mode === 'expert' ? 'expert' : 'simple');
   if (!GL.init()) {
     document.body.innerHTML = '<div style="padding:40px;font:14px monospace;color:#ff2fd0">' +
       'WebGL2 est requis. Utilise Chrome ou Edge à jour.</div>';
@@ -35,11 +35,11 @@ async function offerRestore() {
   const age = Math.max(1, Math.round((Date.now() - r.when) / 60000));
   const quand = age < 60 ? `il y a ${age} min` : age < 2880 ? `il y a ${Math.round(age / 60)} h` : `il y a ${Math.round(age / 1440)} jours`;
   const ok = await modal({
-    title: 'TRAVAIL RETROUVÉ',
+    title: 'Travail retrouvé',
     body: `<div class="hint big">Une sauvegarde automatique de <b>${quand}</b> a été retrouvée :<br>
       <b class="cy">${r.lines} lignes · ${r.timed} syllabes calées</b>.<br><br>
       Elle est gardée dans ce navigateur, à part de la bibliothèque et de tes fichiers.</div>`,
-    ok: 'REPRENDRE', cancel: 'IGNORER'
+    ok: 'Reprendre', cancel: 'Ignorer'
   });
   if (!ok) { toast('Sauvegarde automatique laissée de côté'); return; }
   try {
@@ -64,6 +64,7 @@ function setWorkspace(ws) {
     if (S.extClock && S.playing) pause();
     S.extClock = false;
     if (S.blackout) Live.toggleBlack();
+    Live.resetLead();
     if (Beat.src !== 'song') Beat.setSource('song');   // hors live, la grille suit le morceau (aperçu = export)
   }
   S.ws = ws;
@@ -80,15 +81,17 @@ function setWorkspace(ws) {
 /* ------------------------------------------------------------------ câblage --- */
 function wire() {
   bindFocusHygiene();
+  applyIcons();
 
   $$('#wsNav button').forEach(b => b.onclick = () => setWorkspace(b.dataset.ws));
 
-  /* onglets de style */
-  $$('#tabsR button').forEach(b => b.onclick = () => {
-    $$('#tabsR button').forEach(x => x.classList.remove('on'));
-    b.classList.add('on');
-    $$('#right .tabpage').forEach(p => p.classList.toggle('on', p.id === b.dataset.p));
-  });
+  /* onglets de style — l'onglet ouvert est mémorisé */
+  const showTab = id => {
+    $$('#tabsR button').forEach(x => x.classList.toggle('on', x.dataset.p === id));
+    $$('#right .tabpage').forEach(p => p.classList.toggle('on', p.id === id));
+  };
+  $$('#tabsR button').forEach(b => b.onclick = () => { showTab(b.dataset.p); UiPrefs.set({ tab: b.dataset.p }); });
+  if (UiPrefs.get().tab && $('#' + UiPrefs.get().tab)) showTab(UiPrefs.get().tab);
   $('#mSimple').onclick = () => setUiMode('simple');
   $('#mExpert').onclick = () => setUiMode('expert');
   Steps.bind();
@@ -98,7 +101,6 @@ function wire() {
   $('#fProj').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) f.text().then(t => loadProject(t)).catch(er => toast('Projet illisible : ' + er.message, true)); };
   $('#fAss').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importTimingFile(f); };
   $('#fFont').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadFont(f); };
-  $('#bImport').onclick = () => $('#fAss').click();
   $('#bUnloadAudio').onclick = () => { unloadAudio(); toast('Audio retiré du projet'); };
 
   /* transport */
@@ -116,18 +118,19 @@ function wire() {
   $('#bMerge').onclick = () => rebuild(true);
   $('#bSave').onclick = () => saveToLibrary();
   $('#bSaveLib').onclick = () => saveToLibrary();
-  $('#bSaveAs').onclick = () => saveToLibrary(true, true);
+  $('#bSaveAs').onclick = e => { e.preventDefault(); saveToLibrary(true, true); };
+  $('#sylAll').onclick = () => { S.sylAll = !S.sylAll; $('#sylAll').classList.toggle('on', S.sylAll); renderSylList(); };
 
   /* menu FICHIER — regroupe tout ce qui n'a pas à encombrer la barre */
   $('#bProj').onclick = e => {
     const r = e.currentTarget.getBoundingClientRect();
     showCtx(r.left, r.bottom + 4, [
-      { hd: 'MORCEAU' },
+      { hd: 'Morceau' },
       { label: 'Enregistrer dans la bibliothèque', key: 'Ctrl+S', fn: () => saveToLibrary() },
       { label: 'Enregistrer comme nouveau morceau…', fn: () => saveToLibrary(true, true) },
       { label: 'Nouveau morceau (vide)', fn: newProject },
       { sep: 1 },
-      { hd: 'FICHIERS' },
+      { hd: 'Fichiers' },
       { label: 'Exporter le projet (.kfj)', key: 'Ctrl+Maj+S', fn: saveProjectFile },
       { label: 'Ouvrir un projet (.kfj)…', fn: () => $('#fProj').click() },
       { label: 'Exporter les timings en .ass', fn: exportAss },
@@ -156,15 +159,15 @@ function wire() {
   buildSpeed();
 
   /* sources en ligne, montées à la première ouverture */
-  $('#more1').addEventListener('click', () => { if (!$('#ytBox').dataset.on) { $('#ytBox').dataset.on = 1; Online.mountYoutube($('#ytBox')); } });
+  $('#more1').addEventListener('toggle', () => { if ($('#more1').open && !$('#ytBox').dataset.on) { $('#ytBox').dataset.on = 1; Online.mountYoutube($('#ytBox')); } });
   Online.mountLrclib($('#lrcBox'), {
-    placeholder: 'titre et artiste', pickLabel: 'UTILISER',
+    placeholder: 'titre et artiste', pickLabel: 'Utiliser',
     initial: () => { const g = guessSongInfo(S.audioName); return [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); },
     onPick: r => useLrclibInEditor(r)
   });
-  $('#more2b').addEventListener('click', () => {
+  $('#more2b').addEventListener('toggle', () => {
     const inp = $('#lrcBox input');
-    if (inp && !inp.value) { const g = guessSongInfo(S.audioName); inp.value = [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); }
+    if ($('#more2b').open && inp && !inp.value) { const g = guessSongInfo(S.audioName); inp.value = [S.song.title || g.title, S.song.artist || g.artist].filter(Boolean).join(' '); }
   });
 
   /* touche de calage — Espace reste la lecture */
@@ -178,7 +181,8 @@ function wire() {
   /* aide */
   $('#bHelp').onclick = () => openHelp();
   $('#bHelpClose').onclick = () => openHelp(false);
-  $('#ckHelpMode').onchange = e => setHelpMode(e.target.checked);
+  $('#ckHelpMode').onchange = e => { setHelpMode(e.target.checked); UiPrefs.set({ helpMode: e.target.checked }); };
+  if (UiPrefs.get().helpMode) setHelpMode(true);
   $('#helpPanel').onclick = e => { if (e.target.id === 'helpPanel') openHelp(false); };
   addEventListener('mouseover', helpHover, true);
 
@@ -298,9 +302,12 @@ function onKey(e) {
 
   /* Ctrl+S et Ctrl+E marchent partout, même le curseur dans les paroles —
      sinon c'est la boîte « Enregistrer la page » du navigateur qui s'ouvre. */
-  if (mod && !e.altKey) {
-    if (low === 's') { e.preventDefault(); if (!e.repeat) e.shiftKey ? saveProjectFile() : saveToLibrary(); return; }
-    if (low === 'e') { e.preventDefault(); if (!e.repeat) openExport(); return; }
+  if (mod && !e.altKey && (low === 's' || low === 'e')) {
+    e.preventDefault();
+    if (e.repeat) return;
+    if (S.ws === 'live') { toast('En Live, rien ne s\'enregistre ni ne s\'exporte : les morceaux restent intacts pendant le show'); return; }
+    if (low === 's') e.shiftKey ? saveProjectFile() : saveToLibrary(); else openExport();
+    return;
   }
   /* Alt+1/2/3 : espaces de travail (codes physiques : marche en AZERTY) */
   const ws = /^(?:Digit|Numpad)([123])$/.exec(e.code);
@@ -324,6 +331,7 @@ function onKey(e) {
   }
 
   if (S.ws === 'live') { onKeyLive(e, k, low, mod); return; }
+  if (S.ws === 'style') { onKeyStyle(e, k, low, mod); return; }
 
   /* --- le tap passe avant tout le reste quand le mode est actif --- */
   if (S.tapMode && !e.repeat && isTapKey(e) && (!mod || S.tapKey === 'ControlRight')) { e.preventDefault(); tap(); return; }
@@ -388,7 +396,7 @@ function onKey(e) {
   }
   if (e.repeat) return;
   switch (low) {
-    case 't': if (S.ws === 'style') Beat.tap(); else setTap(!S.tapMode); break;
+    case 't': setTap(!S.tapMode); break;
     case 'k': pause(); break;
     case 'l': S.playing ? setRate(S.rate >= 4 ? 4 : S.rate * 2) : (setRate(1), play()); break;
     case 'j': setRate(S.rate <= .25 ? .25 : (S.rate <= .5 ? .25 : (S.rate <= .75 ? .5 : .75))); if (!S.playing) play(); break;
@@ -401,6 +409,37 @@ function onKey(e) {
     case 'i': setEdgeAtPlayhead('in'); break;
     case 'o': setEdgeAtPlayhead('out'); break;
     case 'f': if (S.tapKey !== 'f') zoomFit(); break;
+  }
+}
+
+/* En Style, on écoute et on regarde : aucune touche ne modifie les timings. */
+function onKeyStyle(e, k, low, mod) {
+  if (mod) return;
+  switch (k) {
+    case ' ': e.preventDefault(); togglePlay(); return;
+    case 'Escape': e.preventDefault(); hideCtx(); return;
+    case 'Home': e.preventDefault(); seek(0); return;
+    case 'End': e.preventDefault(); seek(S.duration); return;
+    case 'ArrowUp': case 'ArrowDown': {
+      e.preventDefault();
+      if (!S.lines.length) return;
+      const li = clamp(S.sel.line + (k === 'ArrowDown' ? 1 : -1), 0, S.lines.length - 1);
+      selOne(li, 0);
+      const sp = lineSpan(S.lines[li]); if (sp) seek(sp[0]);
+      TL.invalidateBlocks(); return;
+    }
+    case 'ArrowLeft': case 'ArrowRight': e.preventDefault(); seek(S.cur + (k === 'ArrowRight' ? 2 : -2)); return;
+    case '+': case '=': e.preventDefault(); TL.setZoom(S.tlZoom * 1.4); return;
+    case '-': case '_': e.preventDefault(); TL.setZoom(S.tlZoom / 1.4); return;
+    case '?': openHelp(); return;
+  }
+  if (e.repeat) return;
+  switch (low) {
+    case 't': Beat.tap(); break;
+    case 'k': pause(); break;
+    case 'l': S.playing ? setRate(S.rate >= 4 ? 4 : S.rate * 2) : (setRate(1), play()); break;
+    case 'j': setRate(S.rate <= .25 ? .25 : (S.rate <= .5 ? .25 : (S.rate <= .75 ? .5 : .75))); if (!S.playing) play(); break;
+    case 'f': zoomFit(); break;
   }
 }
 

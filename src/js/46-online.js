@@ -31,7 +31,7 @@ const Online = {
   mountLrclib(host, { placeholder, pickLabel, onPick, initial }) {
     host.innerHTML = `
       <div class="searchRow"><input type="search" placeholder="${esc(placeholder || 'titre et artiste')}">
-        <button class="pri">CHERCHER</button></div>
+        <button class="pri">Chercher</button></div>
       <div class="results"></div>`;
     const input = $('input', host), btn = $('button', host), out = $('.results', host);
     if (initial) input.value = initial();
@@ -52,7 +52,7 @@ const Online = {
           row.innerHTML = `<div class="rMain"><b>${esc(r.trackName)}</b><span>${esc(r.artistName)}${r.duration ? ' · ' + fmtTime(r.duration, false) : ''}</span></div>
             <span class="badge ${kind[0]}">${kind[1]}</span>`;
           const pick = document.createElement('button');
-          pick.textContent = pickLabel || 'UTILISER';
+          pick.textContent = pickLabel || 'Utiliser';
           pick.disabled = kind[0] === 'none';
           pick.onclick = () => onPick(r, pick);
           row.appendChild(pick);
@@ -85,7 +85,12 @@ const Online = {
       $('.relink', host).onclick = e => { e.preventDefault(); this.mountYoutube(host); };
       return;
     }
-    if (!info.ytdlp) { host.innerHTML = '<div class="hint err">Companion lancé, mais yt-dlp est introuvable : voir companion/LISEZ-MOI.md.</div>'; return; }
+    if (!info.ytdlp) {
+      host.innerHTML = `<div class="hint err">yt-dlp est introuvable. Dépose <b>yt-dlp.exe</b> (et <b>ffmpeg.exe</b>) dans ce dossier, puis <a href="#" class="relink">réessaie</a> :</div>
+        <div class="hint" style="user-select:text;word-break:break-all">${esc(info.binDir || 'companion\bin')}</div>`;
+      $('.relink', host).onclick = e => { e.preventDefault(); this.mountYoutube(host); };
+      return;
+    }
     host.innerHTML = `
       <div class="searchRow"><input type="search" placeholder="lien YouTube, ou recherche">
         <button class="pri">OK</button></div>
@@ -119,7 +124,7 @@ const Online = {
         for (const it of list) {
           const row = document.createElement('div'); row.className = 'result';
           row.innerHTML = `<div class="rMain"><b>${esc(it.title)}</b><span>${esc(it.channel)}${it.duration ? ' · ' + fmtTime(it.duration, false) : ''}</span></div>`;
-          const b = document.createElement('button'); b.textContent = 'AUDIO';
+          const b = document.createElement('button'); b.textContent = 'Audio';
           b.onclick = () => fetchAudio(it.id, it.title, b);
           row.appendChild(b); out.appendChild(row);
         }
@@ -138,9 +143,9 @@ async function useLrclibInEditor(rec) {
   if (!d.lines.length) { toast('Ce résultat ne contient pas de paroles', true); return; }
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (timed && !(await modal({
-    title: 'REMPLACER LES PAROLES ?',
+    title: 'Remplacer les paroles ?',
     body: `<div class="hint big">Les paroles actuelles et leurs <b>${timed} syllabes calées</b> seront remplacées. <b>Ctrl+Z</b> reste possible.</div>`,
-    ok: 'REMPLACER'
+    ok: 'Remplacer'
   }))) return;
   Undo.snap('paroles en ligne');
   S.lines = d.lines;

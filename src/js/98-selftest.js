@@ -151,6 +151,13 @@ async function __selfTest() {
     eq(Undo.doc.undoLabel(), 'saisie des paroles', 'la frappe est annulable');
     Undo.doc.undo(); await tick();
     eq(ta.value, txt, 'Ctrl+Z remet le texte');
+
+    /* ---- 12. application de bureau : le companion embarqué répond ---- */
+    if (location.protocol === 'kf:') {
+      let health = null;
+      for (let i = 0; i < 20 && !health; i++) { health = await Online.companion(); if (!health) await new Promise(r => setTimeout(r, 250)); }
+      ok(!!health, 'companion embarqué joignable sur 127.0.0.1:17002');
+    }
   } catch (e) {
     console.error('[autotest] exception', e);
     failed.push('exception : ' + (e && e.message || e));

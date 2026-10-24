@@ -82,9 +82,9 @@ async function clearAllTimings() {
   const timed = allSyls().filter(o => o.s.t0 != null).length;
   if (!timed) { toast('Aucun timing à effacer'); return; }
   const ok = await modal({
-    title: 'EFFACER TOUS LES TIMINGS ?',
+    title: 'Effacer tous les timings ?',
     body: `<div class="hint big">Les <b>${timed} syllabes calées</b> quittent la timeline. Le texte reste. <b>Ctrl+Z</b> pour revenir.</div>`,
-    ok: 'EFFACER'
+    ok: 'Effacer'
   });
   if (!ok) return;
   Undo.snap('effacer tous les timings');
@@ -174,7 +174,7 @@ function ctxMenuSyl(x, y, h) {
   const L = S.lines[h.li];
   const many = n > 1;
   showCtx(x, y, [
-    { hd: many ? `${n} SYLLABES` : `SYLLABE « ${L.syls[h.si].t.trim()} »` },
+    { hd: many ? `${n} syllabes` : `Syllabe « ${L.syls[h.si].t.trim()} »` },
     { label: 'Effacer le timing', key: 'Suppr', fn: clearTimingSelection },
     { label: many ? 'Supprimer les syllabes' : 'Supprimer la syllabe', key: 'Maj+Suppr', cls: 'dgr', fn: deleteSelection },
     { sep: 1 },
@@ -188,14 +188,14 @@ function ctxMenuSyl(x, y, h) {
     { sep: 1 },
     { label: 'Sélectionner toute la ligne', key: 'Ctrl+A', fn: () => { selLine(h.li); renderSylList(); TL.invalidate(); } },
     { label: 'Répartir la ligne', fn: () => distributeLine(h.li) },
-    { label: 'Supprimer la phrase de la timeline', cls: 'dgr', fn: () => clearLine(h.li) }
+    { label: 'Effacer le calage de la phrase', cls: 'dgr', fn: () => clearLine(h.li) }
   ]);
 }
 
 function ctxMenuLine(x, y, li) {
   const L = S.lines[li];
   showCtx(x, y, [
-    { hd: `LIGNE ${li + 1}` },
+    { hd: `Ligne ${li + 1}` },
     { label: 'Lire cette ligne', fn: () => { const sp = lineSpan(L); if (sp) { seek(Math.max(0, sp[0] - .4)); play(); } } },
     { label: 'Boucler cette ligne', key: 'B', fn: () => { selLine(li); if (S.loop) toggleLoop(); toggleLoop(); } },
     { label: 'Sélectionner ses syllabes', fn: () => { selLine(li); renderSylList(); TL.invalidate(); } },
@@ -203,21 +203,21 @@ function ctxMenuLine(x, y, li) {
     { sep: 1 },
     { label: 'Poser sur les attaques', fn: () => runOnsetAlign([li]) },
     { label: 'Répartir sur la durée', fn: () => distributeLine(li) },
-    { label: 'Supprimer la phrase de la timeline', cls: 'dgr', fn: () => clearLine(li) },
-    { label: 'Supprimer la phrase ET son texte', cls: 'dgr', fn: () => { selLine(li); deleteSelection(); } }
+    { label: 'Effacer le calage de la phrase', cls: 'dgr', fn: () => clearLine(li) },
+    { label: 'Supprimer la phrase et son texte', cls: 'dgr', fn: () => { selLine(li); deleteSelection(); } }
   ]);
 }
 
 function ctxMenuEmpty(x, y, t) {
   showCtx(x, y, [
-    { hd: 'TIMELINE' },
+    { hd: 'Timeline' },
     { label: 'Placer la tête de lecture ici', fn: () => seek(t) },
     { label: 'Tout désélectionner', key: 'Échap', fn: () => { selClear(); renderSylList(); TL.invalidate(); } },
     { sep: 1 },
     { label: 'Voir tout le morceau', key: 'F', fn: () => zoomFit() },
     { label: 'Zoomer sur la sélection', dis: !selCount(), fn: () => zoomSelection() },
     { sep: 1 },
-    { label: 'Effacer TOUS les timings…', cls: 'dgr', fn: clearAllTimings }
+    { label: 'Effacer tous les timings…', cls: 'dgr', fn: clearAllTimings }
   ]);
 }
 
@@ -243,19 +243,27 @@ function renderSylList() {
   const curFlat = S.tapMode ? S.tapIdx : -1;
   let flat = 0;
   const frag = document.createDocumentFragment();
+  /* seule la ligne sélectionnée est détaillée : la timeline montre déjà tout */
+  const only = S.sylAll || S.tapMode ? null : S.sel.line;
+  const which = $('#sylWhich');
+  if (which) {
+    const L = S.lines[S.sel.line];
+    which.textContent = !S.lines.length ? '—' : only == null ? `${S.lines.length} lignes` : `Ligne ${S.sel.line + 1} / ${S.lines.length}` + (L ? ` · ${L.syls.length} syllabes · ↑ ↓ pour changer` : '');
+  }
   S.lines.forEach((L, li) => {
+    if (only != null && li !== only) { flat += L.syls.length; return; }
     const row = document.createElement('div');
     row.className = 'lineRow' + (li === S.sel.line ? ' act' : '');
     const hd = document.createElement('div'); hd.className = 'lineHd';
     const sp = lineSpan(L);
     hd.innerHTML = `<b>${String(li + 1).padStart(2, '0')}</b> ${sp ? fmtTime(sp[0]) + ' → ' + fmtTime(sp[1]) : '<span class="untimed">non calée</span>'}`;
     const mini = document.createElement('div'); mini.className = 'mini';
-    const b1 = document.createElement('button'); b1.textContent = '▶'; b1.title = 'Lire depuis cette phrase';
+    const b1 = document.createElement('button'); b1.innerHTML = icon('play'); b1.title = 'Lire depuis cette phrase'; b1.setAttribute('aria-label', b1.title);
     b1.disabled = !sp;
     b1.onclick = ev => { ev.stopPropagation(); if (sp) { seek(Math.max(0, sp[0] - .4)); play(); } };
     mini.appendChild(b1);
     const b2 = document.createElement('button');
-    b2.textContent = '✕'; b2.title = 'Retirer la phrase de la timeline (le texte reste)';
+    b2.textContent = '✕'; b2.title = 'Effacer le calage de la phrase (le texte reste)'; b2.setAttribute('aria-label', b2.title);
     b2.disabled = !sp;
     b2.onclick = ev => { ev.stopPropagation(); clearLine(li); };
     mini.appendChild(b2);
@@ -311,10 +319,10 @@ async function rebuild(keepTiming) {
      quoi revenir en arrière. C'est ici qu'on perdait des heures de calage. */
   if (timed && !keepTiming) {
     const ok = await modal({
-      title: 'REDÉCOUPER ?',
+      title: 'Redécouper ?',
       body: `<div class="hint big">Redécouper va effacer le placement de <b>${timed} syllabe${timed > 1 ? 's' : ''}</b>.<br><br>
         Pour garder ton calage, choisis <b>Redécouper sans perdre les timings</b>.</div>`,
-      ok: 'EFFACER ET REDÉCOUPER', cancel: 'ANNULER'
+      ok: 'Effacer et redécouper', cancel: 'Annuler'
     });
     if (!ok) return;
   }
