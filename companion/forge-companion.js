@@ -157,6 +157,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, { ...cors(origin), 'Access-Control-Allow-Methods': 'GET' }).end(); return; }
   try {
     switch (url.pathname) {
+      case '/__alive':
+        lastAlive = Date.now();
+        res.writeHead(204, cors(origin)).end();
+        return;
       case '/health':
         send(res, 200, { ok: true, name: 'forge-companion', ytdlp: !!YTDLP, ffmpeg: !!FFMPEG, link: link.connected, binDir: BIN_DIR || process.env.YT_BIN_DIR || path.join(__dirname, 'bin') }, origin);
         return;
@@ -194,6 +198,15 @@ const server = http.createServer(async (req, res) => {
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 setInterval(() => { for (const res of listeners) res.write(': ping\n\n'); }, 15000);
+
+/* Lance en arriere-plan par START-FORGE.bat (FORGE_AUTOEXIT) : la page envoie
+   un signe de vie toutes les 20 s ; une minute sans nouvelles et on s'eteint. */
+let lastAlive = 0;
+const startedAt = Date.now();
+if (process.env.FORGE_AUTOEXIT) setInterval(() => {
+  const now = Date.now();
+  if ((lastAlive && now - lastAlive > 60e3) || (!lastAlive && now - startedAt > 180e3)) process.exit(0);
+}, 5000);
 
 server.on('error', e => {
   if (e.code === 'EADDRINUSE') console.log(`[companion] le port ${PORT} est déjà pris — le companion tourne peut-être déjà.`);

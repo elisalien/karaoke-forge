@@ -8540,6 +8540,17 @@ function wire() {
   addEventListener('keydown', onKey);
   addEventListener('keyup', onKeyUp);
 
+  /* mode navigateur (START-FORGE.bat) : le serveur local et le companion
+     tournent en arrière-plan et s'éteignent une minute après le dernier
+     signe de vie de cette page */
+  if (/^https?:$/.test(location.protocol) && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
+    const alive = () => {
+      fetch('/__alive', { method: 'POST' }).catch(() => { });
+      fetch(COMPANION + '/__alive', { method: 'POST' }).catch(() => { });
+    };
+    alive(); setInterval(alive, 20000);
+  }
+
   new ResizeObserver(() => fitStage()).observe($('#stage'));
 }
 

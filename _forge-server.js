@@ -8,6 +8,17 @@ const path = require('path');
 
 const PORT = parseInt(process.argv[2], 10) || 8777;
 const ROOT = __dirname;
+/* --autoexit : lance par START-FORGE.bat en arriere-plan. La page envoie un
+   signe de vie (POST /__alive) toutes les 20 s ; une minute sans nouvelles
+   et le serveur s'eteint. S'il n'en recoit jamais (navigateur jamais ouvert),
+   il s'eteint au bout de trois minutes. */
+const AUTOEXIT = process.argv.includes('--autoexit');
+let lastAlive = 0;
+const started = Date.now();
+if (AUTOEXIT) setInterval(() => {
+  const now = Date.now();
+  if ((lastAlive && now - lastAlive > 60e3) || (!lastAlive && now - started > 180e3)) process.exit(0);
+}, 5000);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -26,6 +37,7 @@ http.createServer((req, res) => {
   let rel;
   try { rel = decodeURIComponent(new URL(req.url, 'http://x').pathname); }
   catch { res.writeHead(400).end('Bad request'); return; }
+  if (rel === '/__alive') { lastAlive = Date.now(); res.writeHead(204).end(); return; }
   if (rel === '/') rel = '/karaoke-forge.html';
 
   // interdit toute remontee hors du dossier
