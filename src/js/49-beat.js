@@ -58,6 +58,7 @@ const Beat = {
       const bpm = Math.round(clamp(60000 / iv, 40, 240) * 10) / 10;
       if (this.src === 'song' && S.ws !== 'live') {
         // hors live : le tempo tapé devient celui du morceau (aperçu = export)
+        Undo.style.snap('tempo frappé', 'bpm');
         P.bpm = bpm;
         if (S.playing) {
           const period = 60 / bpm, tt = tapTime();
@@ -76,7 +77,7 @@ const Beat = {
 
   setBpm(b) {
     b = Math.round(clamp(+b || 120, 40, 240) * 10) / 10;
-    if (this.src === 'song') { P.bpm = b; this.paramsChanged(); }
+    if (this.src === 'song') { Undo.style.snap('tempo', 'bpm'); P.bpm = b; this.paramsChanged(); }
     else { this.anchorBeat = this.liveBeat(); this.anchorEpoch = epochNow(); this.bpm = b; }
     this.changed();
   },
@@ -86,6 +87,7 @@ const Beat = {
   resync() {
     if (this.src === 'song') {
       const period = 60 / P.bpm, tt = now();
+      Undo.style.snap('caler le temps');
       P.beatOffset = Math.round((((tt % period) + period) % period) * 1000);
       this.paramsChanged();
     } else { this.anchorBeat = Math.round(this.liveBeat()); this.anchorEpoch = epochNow(); }
@@ -99,6 +101,7 @@ const Beat = {
       const r = Onsets.tempo();
       if (!r) { toast('Pas assez d\'attaques nettes pour trouver le tempo', true); return; }
       if (this.src !== 'song') this.setSource('song');
+      Undo.style.snap('tempo détecté');
       P.bpm = Math.round(r.bpm * 10) / 10;
       P.beatOffset = Math.round(r.offset * 1000);
       this.paramsChanged(); this.changed();

@@ -1,0 +1,60 @@
+{
+  "name": "karaoke-forge-desktop",
+  "productName": "Karaoke Forge",
+  "version": "1.0.0",
+  "description": "Karaoké animé et paroles en live pour la scène — application de bureau",
+  "author": "Elisalien",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "electron . --selftest",
+    "prepare:app": "node prepare.mjs",
+    "dist": "node prepare.mjs && electron-builder --win",
+    "dist:portable": "node prepare.mjs && electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "fr.elisalien.karaokeforge",
+    "productName": "Karaoke Forge",
+    "copyright": "Elisalien",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "app/**/*",
+      "build/icon.ico",
+      "!**/*.map"
+    ],
+    "asarUnpack": [
+      "app/companion/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Karaoke-Forge-${version}-${os}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Karaoke Forge",
+      "artifactName": "Karaoke-Forge-Setup-${version}.${ext}",
+      "language": "1036"
+    },
+    "portable": {
+      "artifactName": "Karaoke-Forge-${version}-portable.${ext}"
+    }
+  }
+}

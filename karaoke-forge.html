@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KARAOKE FORGE</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' data: blob:; connect-src 'self' blob: data: https://lrclib.net http://127.0.0.1:17002 http://localhost:17002; worker-src 'self' blob:">
+<title>Karaoke Forge</title>
 <link rel="icon" href="data:,">
 <style>
 /* ============================================================
@@ -476,6 +477,11 @@ body.scene-mode.idle,body.scene-mode.idle *{cursor:none!important}
     <button id="bStop" title="Retour au début" data-help="Arrête et revient à 00:00.">■</button>
     <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
     <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    <div class="sep"></div>
+    <div class="undo" id="undoBar">
+      <button id="bUndo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans PRÉPARER, réglages dans STYLE. <em>Ctrl+Z</em>.">↶</button>
+      <button id="bRedo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>.">↷</button>
+    </div>
     <div class="spacer"></div>
     <span id="saveState" data-help="Le morceau ouvert, et s'il est rangé dans la bibliothèque."></span>
     <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque du navigateur. Il sera prêt dans <em>LIVE</em>. <em>Ctrl+S</em>.">ENREGISTRER</button>
@@ -3198,73 +3204,207 @@ function sylEnd(L, i) {
   return s.t0 != null ? s.t0 + .35 : null;
 }
 /* ------------------------------------------------------------- annulation --- */
-/* Le calage à la main, c'est essayer, rater, recommencer. Chaque opération qui
-   touche aux timings prend un instantané ; Ctrl+Z revient dessus.            */
-/* `stack[idx]` est le dernier état enregistré. Le document vivant peut être
-   PLUS RÉCENT que lui : snap() est appelé juste avant une modification, donc
-   la modification elle-même n'entre dans la pile qu'au moment où on annule.
-   Ce détour permet d'appeler snap() avant ou après une opération, sans que
-   l'appelant ait à s'en soucier.                                            */
-const Undo = {
-  stack: [], idx: -1, max: 80, pending: 'modification',
+/* Le calage à la main, c'est essayer, rater, recommencer. Chaque opération
+   prend un instantané juste AVANT de modifier ; Ctrl+Z revient dessus.
 
-  /* Seuls le texte et les timings comptent : les marqueurs internes du rendu
-     (ex. __burst) ne doivent pas faire croire à une modification.        */
-  cur() { return JSON.stringify(cleanLines(S.lines)); },
+   Deux piles indépendantes, une par espace de travail :
+     · Undo.doc   — paroles, timings, titre (PRÉPARER)
+     · Undo.style — les réglages d'ambiance P (STYLE)
+   Ctrl+Z agit sur la pile de l'espace actif ; en LIVE rien n'est annulable.
 
-  push(data, label) {
-    this.stack.length = this.idx + 1;
-    this.stack.push({ data, label });
+   Invariant : `stack[idx]` est le dernier état ENREGISTRÉ ; l'état vivant
+   peut lui être postérieur d'une opération (celle qui a suivi le dernier
+   snap). Chaque entrée porte le nom de l'opération qui a PRODUIT cet état,
+   ce qui donne des messages justes : « Annulé : déplacer ».
+
+   Les opérations répétées (flèches tenues, curseur qu'on glisse) passent un
+   `group` : tant que le même groupe revient dans la seconde, elles ne font
+   qu'une seule étape.                                                        */
+class UndoStack {
+  constructor(opts) {
+    this.capture = opts.capture;        // → { key, aside } : key comparée, aside restaurée mais non comparée
+    this.apply = opts.apply;            // (entry) → remet l'état en place
+    this.onChange = opts.onChange;      // appelé quand une opération a réellement changé l'état
+    this.max = opts.max || 80;
+    this.coalesceMs = opts.coalesceMs || 900;
+    this.stack = []; this.idx = -1; this.pending = 'modification';
+    this.lastGroup = null; this.lastAt = 0; this.checking = false;
+  }
+
+  push(c, label) {
+    this.stack.length = this.idx + 1;             // nouvelle branche : le « rétablir » tombe
+    this.stack.push({ key: c.key, aside: c.aside, label });
     if (this.stack.length > this.max) this.stack.shift();
     this.idx = this.stack.length - 1;
-  },
+  }
 
-  snap(label) {
-    this.pending = label || 'modification';
-    Doc.linesDirty = true;
-    Doc.touch();
-    const data = this.cur();
-    // on repart dans une nouvelle branche : ce qu'il y avait à rétablir tombe
-    if (this.idx < this.stack.length - 1) this.stack.length = this.idx + 1;
-    if (this.idx >= 0 && this.stack[this.idx].data === data) return;  // déjà enregistré
-    this.push(data, this.pending);
-  },
+  /** À appeler AVANT une modification. */
+  snap(label, group) {
+    const t = performance.now();
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) {
+      // l'opération précédente n'est pas encore dans la pile : on l'y range,
+      // sauf si on est dans la même rafale (flèches tenues, curseur glissé)
+      const same = group && group === this.lastGroup && t - this.lastAt < this.coalesceMs;
+      if (!same) this.push(c, this.pending);
+    } else if (top) {
+      top.aside = c.aside;      // la sélection au moment de quitter cet état : c'est elle qu'on retrouvera
+    }
+    if (!top) this.push(c, 'état initial');
+    if (!(group && group === this.lastGroup && t - this.lastAt < this.coalesceMs)) this.pending = label || 'modification';
+    this.lastGroup = group || null; this.lastAt = t;
+    this.scheduleCheck();
+  }
 
-  restore(i) {
-    const e = this.stack[i]; if (!e) return false;
-    S.lines = JSON.parse(e.data);
-    S.selSet.clear();
-    S.sel = { line: clamp(S.sel.line, 0, Math.max(0, S.lines.length - 1)), syl: 0 };
-    S.dirtyLayout = true; S.dirtyMask = true;
-    if (typeof Mask !== 'undefined') Mask.li = -1;
-    return true;
-  },
+  /** Après l'opération : si l'état a vraiment changé, on le signale (modifié, autosave). */
+  scheduleCheck() {
+    if (this.checking || !this.onChange) return;
+    this.checking = true;
+    queueMicrotask(() => {
+      this.checking = false;
+      const top = this.stack[this.idx];
+      if (top && this.capture().key !== top.key) this.onChange();
+    });
+  }
+
+  /** Vrai si Ctrl+Z aurait un effet. */
+  canUndo() {
+    if (this.idx > 0) return true;
+    const top = this.stack[this.idx];
+    return !!top && this.capture().key !== top.key;
+  }
+  canRedo() { return this.idx >= 0 && this.idx < this.stack.length - 1 && this.capture().key === this.stack[this.idx].key; }
+  /** Nom de la prochaine opération annulable / rétablissable. */
+  undoLabel() {
+    const top = this.stack[this.idx]; if (!top) return '';
+    return this.capture().key !== top.key ? this.pending : (this.idx > 0 ? top.label : '');
+  }
+  redoLabel() { return this.canRedo() ? this.stack[this.idx + 1].label : ''; }
 
   undo() {
-    if (this.idx < 0) { toast('Rien à annuler'); return; }
-    const live = this.cur();
-    let label;
-    if (live !== this.stack[this.idx].data) {
-      // la modification en cours n'est pas encore dans la pile : on l'y range
-      // pour pouvoir la rétablir, puis on recule dessus
-      label = this.pending;
-      this.push(live, label);
-    } else {
-      if (this.idx === 0) { toast('Rien à annuler'); return; }
-      label = this.stack[this.idx].label;
-    }
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) this.push(c, this.pending);     // l'opération en cours entre dans la pile
+    if (this.idx <= 0) { toast('Rien à annuler'); return false; }
+    const leaving = this.stack[this.idx];
+    leaving.aside = c.aside;                                        // pour retrouver la sélection au rétablir
     this.idx--;
-    if (this.restore(this.idx)) { toast('Annulé : ' + label); afterUndo(); }
-  },
+    this.lastGroup = null;
+    this.apply(this.stack[this.idx]);
+    toast('Annulé : ' + leaving.label);
+    if (this.onChange) this.onChange();
+    return true;
+  }
 
   redo() {
-    if (this.idx >= this.stack.length - 1) { toast('Rien à rétablir'); return; }
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) { this.push(c, this.pending); toast('Rien à rétablir'); return false; }
+    if (this.idx >= this.stack.length - 1) { toast('Rien à rétablir'); return false; }
+    if (top) top.aside = c.aside;
     this.idx++;
-    if (this.restore(this.idx)) { toast('Rétabli : ' + this.stack[this.idx].label); afterUndo(); }
-  },
+    this.lastGroup = null;
+    this.apply(this.stack[this.idx]);
+    toast('Rétabli : ' + this.stack[this.idx].label);
+    if (this.onChange) this.onChange();
+    return true;
+  }
 
-  reset() { this.stack = []; this.idx = -1; this.pending = 'modification'; this.snap('état initial'); }
+  reset() {
+    this.stack = []; this.idx = -1; this.pending = 'modification'; this.lastGroup = null;
+    this.push(this.capture(), 'état initial');
+  }
+}
+
+const Undo = {
+  /* ---- document : paroles, timings, titre ---- */
+  doc: new UndoStack({
+    capture() {
+      const ta = document.getElementById('lyricsText');
+      return {
+        key: JSON.stringify({
+          lines: cleanLines(S.lines), lyrics: ta ? ta.value : '', ld: !!Doc.lyricsDirty,
+          title: S.song.title, artist: S.song.artist
+        }),
+        aside: { sel: { ...S.sel }, selSet: [...S.selSet], tapIdx: S.tapIdx }
+      };
+    },
+    apply(e) {
+      if (typeof TL !== 'undefined' && TL.drag) TL.cancelDrag();
+      if (S.tapMode && typeof setTap === 'function') setTap(false);
+      const d = JSON.parse(e.key);
+      S.lines = d.lines;
+      const ta = document.getElementById('lyricsText'); if (ta) ta.value = d.lyrics;
+      Doc.lyricsDirty = d.ld;
+      S.song.title = d.title; S.song.artist = d.artist;
+      const a = e.aside || {};
+      S.selSet = new Set((a.selSet || []).filter(k => { const [li, si] = k.split(':').map(Number); return S.lines[li] && S.lines[li].syls[si]; }));
+      const li = clamp((a.sel && a.sel.line) || 0, 0, Math.max(0, S.lines.length - 1));
+      const si = clamp((a.sel && a.sel.syl) || 0, 0, Math.max(0, (S.lines[li] ? S.lines[li].syls.length : 1) - 1));
+      S.sel = { line: li, syl: si };
+      S.tapIdx = clamp(a.tapIdx || 0, 0, allSyls().length);
+      if (S.loop) { const sp = S.lines[li] && lineSpan(S.lines[li]); S.loop = sp ? [Math.max(0, sp[0] - .35), sp[1] + .35] : null; }
+      S.dirtyLayout = true; S.dirtyMask = true;
+      if (typeof Mask !== 'undefined') Mask.li = -1;
+      afterUndo();
+    },
+    onChange() { Doc.linesDirty = true; Doc.touch(); updateUndoUi(); }
+  }),
+
+  /* ---- style : les réglages P (sans le fond d'incrustation du live) ---- */
+  style: new UndoStack({
+    capture() {
+      const p = typeof Live !== 'undefined' ? Live.docParams() : { ...P };
+      return { key: JSON.stringify(p), aside: null };
+    },
+    apply(e) {
+      const d = JSON.parse(e.key);
+      const key = typeof Live !== 'undefined' ? Live.keyColor : '';
+      if (key) Live.keyPrev = null;
+      for (const k in d) if (k in P) P[k] = d[k];
+      if (key) Live.setKey(key);            // le fond d'incrustation reste un état de soirée
+      S.dirtyLayout = true; S.dirtyMask = true;
+      if (typeof Mask !== 'undefined') Mask.li = -1;
+      syncPanels();
+      if (typeof resizeStage === 'function') resizeStage();
+      if (typeof Particles !== 'undefined') { Particles.resize(P.parMax); Particles.reset(); }
+      if (typeof Beat !== 'undefined') Beat.changed();
+      $$('#presets button').forEach(b => b.classList.remove('on'));
+      requestRender(); docChanged();
+    },
+    onChange() { Doc.touch(); updateUndoUi(); }
+  }),
+
+  /** La pile de l'espace actif ; aucune en LIVE. */
+  active() { return S.ws === 'style' ? this.style : S.ws === 'prep' ? this.doc : null; },
+
+  /* raccourcis historiques : les opérations sur les timings passent par ici */
+  snap(label, group) { this.doc.snap(label, group); },
+  undo() {
+    const u = this.active();
+    if (!u) { toast('Pas d\'annulation en LIVE : les morceaux restent tels quels pendant le show'); return; }
+    u.undo();
+  },
+  redo() { const u = this.active(); if (!u) return; u.redo(); },
+  reset() { this.doc.reset(); this.style.reset(); updateUndoUi(); }
 };
+
+/** Boutons ↶ ↷ de l'en-tête : état et infobulle suivent la pile active. */
+let _undoUiTimer = 0;
+function updateUndoUi() {
+  if (_undoUiTimer) return;
+  _undoUiTimer = requestAnimationFrame(() => {
+    _undoUiTimer = 0;
+    const bu = document.getElementById('bUndo'), br = document.getElementById('bRedo');
+    if (!bu || !br) return;
+    const u = Undo.active();
+    const cu = !!u && u.canUndo(), cr = !!u && u.canRedo();
+    bu.disabled = !cu; br.disabled = !cr;
+    bu.title = cu ? `Annuler : ${u.undoLabel()} (Ctrl+Z)` : (u ? 'Rien à annuler (Ctrl+Z)' : 'Pas d\'annulation en LIVE');
+    br.title = cr ? `Rétablir : ${u.redoLabel()} (Ctrl+Maj+Z)` : 'Rien à rétablir (Ctrl+Maj+Z)';
+  });
+}
 /* ------------------------------------------------------ filet de sécurité --- */
 /* Le travail de calage se compte en heures. Rien ne doit pouvoir l'effacer
    sans retour possible : sauvegarde automatique locale, drapeau « modifié »,
@@ -3281,7 +3421,9 @@ const Doc = {
     updateSaveState();
   },
 
-  clean() { this.dirty = false; this.linesDirty = false; updateSaveState(); },
+  /* Un enregistrement annule aussi l'autosave en attente : sinon un
+     document vide armé au démarrage écraserait la sauvegarde retrouvée. */
+  clean() { this.dirty = false; this.linesDirty = false; clearTimeout(this.timer); updateSaveState(); updateUndoUi(); },
 
   autosave() {
     try {
@@ -3305,9 +3447,12 @@ const Doc = {
 };
 
 function afterUndo() {
+  if (typeof refreshDuration === 'function') refreshDuration();
   renderSylList();
   TL.invalidate();
   requestRender();
+  if (typeof updateTapHud === 'function') updateTapHud();
+  updateSaveState();
 }
 
 /** Copie des lignes réduite à ce qui fait le document. */
@@ -3406,6 +3551,7 @@ function setUiMode(m) {
 
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
+  Undo.style.snap('ambiance ' + name);
   for (const k in p) if (k in P) P[k] = p[k];
   S.dirtyLayout = true; S.dirtyMask = true;
   syncPanels();
@@ -3471,7 +3617,9 @@ function makeControl(k, label, type, opt) {
 
 function setParam(k, val) {
   if (P[k] === val) return;
+  Undo.style.snap('réglage « ' + ((PMETA[k] && PMETA[k].label) || k) + ' »', k);
   P[k] = val;
+  $$('#presets button.on').forEach(b => b.classList.remove('on'));   // l'ambiance n'est plus telle quelle
   if (LAYOUT_KEYS.has(k)) { S.dirtyLayout = true; S.dirtyMask = true; }
   if (k === 'resPreset' || k === 'previewScale') resizeStage();
   if (k === 'parMax') Particles.resize(P.parMax);
@@ -4402,12 +4550,18 @@ function renderFrame(t, dt) {
 
 /* ----------------------------------------------------------------- audio --- */
 async function loadAudio(file) {
-  if (!S.ctx) S.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!S.ctx) {
+    try { S.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { throw new Error('Web Audio indisponible dans ce navigateur'); }
+  }
   const gen = ++S.audioGen;          // un chargement lancé après celui-ci l'annule
-  const buf = await file.arrayBuffer();
+  const busy = setBusy(`Décodage de ${file.name || 'l\'audio'}…`);
   let ab;
-  try { ab = await S.ctx.decodeAudioData(buf); }
-  catch (e) { if (gen !== S.audioGen) return false; throw new Error('format audio non reconnu'); }
+  try {
+    const buf = await file.arrayBuffer();
+    try { ab = await S.ctx.decodeAudioData(buf); }
+    catch (e) { if (gen !== S.audioGen) return false; throw new Error('format audio non reconnu'); }
+  } finally { busy(); }
   if (gen !== S.audioGen) return false;
   stop();
   S.buffer = ab; S.audioBlob = file; S.audioName = file.name || 'audio'; S.audioRemoved = false;
@@ -4419,7 +4573,20 @@ async function loadAudio(file) {
   updateTime(); TL.invalidate();
   Steps.refresh();
   toast(`Audio chargé — ${S.audioName} (${fmtTime(ab.duration, false)})`);
+  // les attaques se calculent en tâche de fond : la timeline les affiche dès qu'elles sont prêtes
+  Onsets.computeAsync(() => { if (gen === S.audioGen) TL.invalidate(); });
   return true;
+}
+
+/** Indicateur d'activité discret dans l'en-tête ; renvoie la fonction qui le retire. */
+function setBusy(msg) {
+  const el = $('#saveState'); if (!el) return () => { };
+  el.dataset.busy = (+(el.dataset.busy || 0) + 1);
+  el.classList.add('busy'); el.textContent = msg;
+  return () => {
+    el.dataset.busy = Math.max(0, +(el.dataset.busy || 1) - 1);
+    if (!+el.dataset.busy) { el.classList.remove('busy'); updateSaveState(); }
+  };
 }
 
 /** Oublie l'audio (le projet reste). */
@@ -4489,6 +4656,7 @@ function play(from) {
     };
   }
   S.startOff = off; S.freeT = performance.now();
+  if (from === undefined) TL.resumeFollow();    // reprise de lecture : la vue suit de nouveau
   setPlaying(true);
   if (S.holdAt != null) setHold(S.holdAt);
   requestRender();
@@ -4538,6 +4706,7 @@ function now() {
 }
 function seek(t) {
   S.cur = clamp(t, 0, S.duration || 0);
+  TL.resumeFollow();
   if (S.holdAt != null && S.cur >= S.holdAt - .01) S.holdAt = null;   // aller au-delà de l'arrêt l'annule
   Particles.reset();
   if (S.playing) play(S.cur);
@@ -4595,7 +4764,13 @@ function toggleLoop() {
    avec capture : un glissé commencé sur la timeline lui appartient jusqu'au
    relâchement, même si la souris sort de la fenêtre. Un seuil de quelques
    pixels sépare le clic du glissé : cliquer ne déplace jamais rien, et un
-   bloc ne peut pas traverser une voisine qui ne bouge pas avec lui.        */
+   bloc ne peut pas traverser une voisine qui ne bouge pas avec lui.
+
+   Deux calques en cache :
+     · la VUE (règle, onde, attaques, zone de boucle) — ne change qu'au zoom,
+       au défilement ou au chargement d'un audio ;
+     · les BLOCS (lignes, syllabes) — changent à chaque édition ou sélection.
+   Un glissé ne redessine que les blocs : l'onde, coûteuse, reste en cache.  */
 const DRAG_PX = 4;        // distance (px CSS) avant qu'un clic devienne un glissé
 const MIN_SYL = .02;      // écart minimal entre deux débuts de syllabe (s)
 
@@ -4603,24 +4778,30 @@ const MIN_SYL = .02;      // écart minimal entre deux débuts de syllabe (s)
 function capturePointer(el, e) { try { el.setPointerCapture(e.pointerId); } catch (er) { } }
 
 const TL = {
-  c: null, g: null, stat: null, sg: null,
-  dirty: true, needs: true, drag: null, dpr: 1, snapGuide: null, hoverT: null,
+  c: null, g: null,
+  view: null, vg: null,          // calque vue (règle + onde)
+  blk: null, bg: null,           // calque blocs (lignes + syllabes)
+  dirty: true, dirtyBlocks: true, needs: true, drag: null, dpr: 1,
+  snapGuide: null, hoverT: null, hoverX: null, hoverHit: null,
   onHead: false, scrubWasPlaying: false, lastGrain: 0,
+  followPaused: false, lastDownAt: 0, lastDownX: 0, curBeforeDown: 0,
   RULER: 18, WAVE: 44, LANE: 22, SYL: 36,
 
   init() {
     this.c = $('#tlCanvas');
     this.g = this.c.getContext('2d');
-    this.stat = document.createElement('canvas');
-    this.sg = this.stat.getContext('2d');
+    this.view = document.createElement('canvas'); this.vg = this.view.getContext('2d');
+    this.blk = document.createElement('canvas'); this.bg = this.blk.getContext('2d');
     this.resize();
     this.bind();
     new ResizeObserver(() => this.resize()).observe($('#tlScroll'));
   },
 
-  /** Full repaint including the cached background layer. */
-  invalidate() { this.dirty = true; this.needs = true; },
-  /** Overlay-only repaint (playhead, lasso, guides) — cheap. */
+  /** Tout redessiner : vue et blocs. */
+  invalidate() { this.dirty = true; this.dirtyBlocks = true; this.needs = true; },
+  /** Seuls les blocs ont changé (édition, sélection) : l'onde reste en cache. */
+  invalidateBlocks() { this.dirtyBlocks = true; this.needs = true; },
+  /** Calques intacts : seules les surcouches (tête, lasso, guides) bougent. */
   repaint() { this.needs = true; },
 
   resize() {
@@ -4631,7 +4812,8 @@ const TL = {
     const h = Math.max(120, Math.floor(r.height * dpr));
     if (w === this.c.width && h === this.c.height && dpr === this.dpr) return;
     this.c.width = w; this.c.height = h;
-    this.stat.width = w; this.stat.height = h;
+    this.view.width = w; this.view.height = h;
+    this.blk.width = w; this.blk.height = h;
     this.dpr = dpr;
     this.invalidate();
   },
@@ -4652,27 +4834,48 @@ const TL = {
     S.tlScroll = clamp(S.tlScroll, 0, Math.max(0, (S.duration || 60) - vis * .5));
   },
 
+  /** Zoom autour d'un point (px canevas) ; sans point : autour de la tête de
+      lecture si elle est visible, sinon du centre. */
   setZoom(z, anchorX) {
-    const ax = anchorX === undefined ? this.c.width / 2 : anchorX;
+    let ax = anchorX;
+    if (ax === undefined) {
+      const px = this.t2x(S.cur);
+      ax = px >= 0 && px <= this.c.width ? px : this.c.width / 2;
+    }
     const tAt = this.x2t(ax);
     S.tlZoom = clamp(z, 2, 4000);
     S.tlScroll = tAt - ax / (S.tlZoom * this.dpr);
     this.clampScroll();
     this.invalidate();
+    this.updateStat();
   },
 
-  /* ------------------------------------------------------- cached layer --- */
-  buildStatic() {
-    const g = this.sg, W = this.stat.width, H = this.stat.height, d = this.dpr;
+  /** Défilement manuel : pendant la lecture, le suivi se met en pause
+      jusqu'au prochain déplacement de la tête (lecture, clic, recherche). */
+  userScrolled() {
+    if (S.playing && S.follow && !this.followPaused) { this.followPaused = true; this.updateFollowUi(); }
+  },
+  resumeFollow() {
+    if (this.followPaused) { this.followPaused = false; this.updateFollowUi(); }
+  },
+  updateFollowUi() {
+    const b = $('#ckFollow'); if (!b) return;
+    b.classList.toggle('paused', this.followPaused);
+    b.title = this.followPaused ? 'Suivi en pause le temps que tu regardes ailleurs — reprend à la prochaine lecture' : 'La vue suit la lecture';
+  },
+
+  /* ------------------------------------------------------ calque : vue --- */
+  buildView() {
+    const g = this.vg, W = this.view.width, H = this.view.height, d = this.dpr;
     const G = this.geo();
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = '#0a0d19'; g.fillRect(0, 0, W, H);
+    g.fillStyle = TLC.bg; g.fillRect(0, 0, W, H);
     this.clampScroll();
     const t0 = S.tlScroll, t1 = this.x2t(W);
-    const FONT = n => `${n * d}px ui-monospace,Consolas,monospace`;
+    const FONT = n => `${n * d}px ${TLC.font}`;
 
-    /* ---- ruler ---- */
-    g.fillStyle = '#0d1224'; g.fillRect(0, 0, W, G.ruler);
+    /* ---- règle ---- */
+    g.fillStyle = TLC.ruler; g.fillRect(0, 0, W, G.ruler);
     const steps = [.02, .05, .1, .25, .5, 1, 2, 5, 10, 15, 30, 60, 120];
     const stp = steps.find(s => s * S.tlZoom > 64) || 120;
     g.font = FONT(10); g.textBaseline = 'middle';
@@ -4683,16 +4886,16 @@ const TL = {
       const t = Math.round(i * sub * 1000) / 1000;
       const x = Math.round(this.t2x(t)) + .5;
       const major = i % 5 === 0;
-      g.strokeStyle = major ? '#2b3564' : '#171d38';
+      g.strokeStyle = major ? TLC.gridMajor : TLC.gridMinor;
       g.beginPath(); g.moveTo(x, major ? 0 : G.ruler * .55); g.lineTo(x, major ? H : G.ruler); g.stroke();
-      if (major) { g.fillStyle = '#8391c0'; g.fillText(fmtTime(t, stp < 1), x + 3 * d, G.ruler / 2); }
+      if (major) { g.fillStyle = TLC.rulerTxt; g.fillText(fmtTime(t, stp < 1), x + 3 * d, G.ruler / 2); }
     }
 
-    /* ---- waveform ---- */
-    g.fillStyle = '#070a14'; g.fillRect(0, G.waveY, W, G.wave);
+    /* ---- onde ---- */
+    g.fillStyle = TLC.waveBg; g.fillRect(0, G.waveY, W, G.wave);
     if (S.peaks) {
       const { mn, mx, rate } = S.peaks, mid = G.waveY + G.wave / 2, amp = G.wave / 2 - 2 * d;
-      g.strokeStyle = '#1d6f8e'; g.lineWidth = 1;
+      g.strokeStyle = TLC.wave; g.lineWidth = 1;
       g.beginPath();
       for (let x = 0; x < W; x++) {
         const ia = Math.max(0, Math.floor(this.x2t(x) * rate));
@@ -4704,46 +4907,70 @@ const TL = {
         g.moveTo(x + .5, mid - b * amp); g.lineTo(x + .5, mid - a * amp);
       }
       g.stroke();
-      g.strokeStyle = '#0f3a4c'; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+      g.strokeStyle = TLC.waveMid; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+
+      /* ---- attaques détectées : petits traits sous la règle ---- */
+      if (typeof Onsets !== 'undefined' && Onsets.ready()) {
+        const o = Onsets.cache;
+        g.lineWidth = 1;
+        for (let i = 0; i < o.times.length; i++) {
+          const t = o.times[i]; if (t < t0) continue; if (t > t1) break;
+          const x = Math.round(this.t2x(t)) + .5;
+          const h = (3 + 6 * o.str[i]) * d;
+          g.strokeStyle = o.str[i] > .5 ? TLC.onsetStrong : TLC.onset;
+          g.beginPath(); g.moveTo(x, G.waveY); g.lineTo(x, G.waveY + h); g.stroke();
+        }
+      }
     } else {
-      g.fillStyle = '#3a4570'; g.font = FONT(11);
+      g.fillStyle = TLC.faint; g.font = FONT(11);
       g.fillText(S.lines.length ? '— sans audio : horloge libre —' : '— aucun audio chargé —', 10 * d, G.waveY + G.wave / 2);
     }
 
     /* ---- zone de boucle ---- */
     if (S.loop) {
       const lx = this.t2x(S.loop[0]), lw = this.t2x(S.loop[1]) - lx;
-      g.fillStyle = 'rgba(166,255,47,.07)';
+      g.fillStyle = TLC.loopFill;
       g.fillRect(lx, 0, lw, H);
-      g.strokeStyle = 'rgba(166,255,47,.5)'; g.lineWidth = 1;
+      g.strokeStyle = TLC.loopLine; g.lineWidth = 1;
       g.beginPath();
       g.moveTo(lx + .5, 0); g.lineTo(lx + .5, H);
       g.moveTo(lx + lw - .5, 0); g.lineTo(lx + lw - .5, H);
       g.stroke();
     }
 
-    /* ---- lanes background ---- */
-    g.fillStyle = '#0b0f1e'; g.fillRect(0, G.laneY, W, H - G.laneY);
-    g.strokeStyle = '#151b33'; g.beginPath();
+    /* ---- fond des pistes ---- */
+    g.fillStyle = TLC.laneBg; g.fillRect(0, G.laneY, W, H - G.laneY);
+    g.strokeStyle = TLC.laneLine; g.beginPath();
     g.moveTo(0, G.sylY + .5); g.lineTo(W, G.sylY + .5); g.stroke();
-    g.font = FONT(10.5);
+    this.dirty = false;
+  },
 
-    /* ---- line blocks ---- */
+  /* ---------------------------------------------------- calque : blocs --- */
+  buildBlocks() {
+    const g = this.bg, W = this.blk.width, H = this.blk.height, d = this.dpr;
+    const G = this.geo();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const t0 = S.tlScroll, t1 = this.x2t(W);
+    g.font = `${10.5 * d}px ${TLC.font}`; g.textBaseline = 'middle';
+
+    /* ---- lignes ---- */
     S.lines.forEach((L, li) => {
       const sp = lineSpan(L); if (!sp || sp[1] < t0 || sp[0] > t1) return;
       const x = this.t2x(sp[0]), w = Math.max(2 * d, this.t2x(sp[1]) - x);
       const act = li === S.sel.line;
-      g.fillStyle = act ? '#330d49' : '#151c38';
-      g.fillRect(x, G.laneY + 2, w, G.lane - 4);
-      g.strokeStyle = act ? '#ff2fd0' : '#2b3564';
-      g.lineWidth = 1; g.strokeRect(x + .5, G.laneY + 2.5, w - 1, G.lane - 5);
+      g.fillStyle = act ? TLC.lineAct : TLC.line;
+      g.fillRect(x, G.laneY + 2 * d, w, G.lane - 4 * d);
+      g.strokeStyle = act ? TLC.acc : TLC.lineEdge;
+      g.lineWidth = 1; g.strokeRect(x + .5, G.laneY + 2 * d + .5, w - 1, G.lane - 4 * d - 1);
       g.save(); g.beginPath(); g.rect(x, G.laneY, w, G.lane); g.clip();
-      g.fillStyle = act ? '#ffd6f6' : '#8f9dd0';
+      g.fillStyle = act ? TLC.txt : TLC.dim;
       g.fillText(`${li + 1}· ${L.raw || L.syls.map(s => s.t).join('')}`.slice(0, 110), x + 5 * d, G.laneY + G.lane / 2);
       g.restore();
     });
 
-    /* ---- syllable blocks ---- */
+    /* ---- syllabes ---- */
+    const hh = this.hoverHit;
     S.lines.forEach((L, li) => {
       L.syls.forEach((s, si) => {
         if (s.t0 == null) return;
@@ -4751,94 +4978,105 @@ const TL = {
         const x = this.t2x(s.t0), w = Math.max(3 * d, this.t2x(e) - x);
         const sel = selHas(li, si);
         const prim = S.sel.line === li && S.sel.syl === si;
-        g.fillStyle = sel ? '#5b1580' : (li % 2 ? '#122c44' : '#141f42');
-        g.fillRect(x, G.sylY + 3, w - 1, G.syl - 7);
+        const hov = hh && hh.li === li && hh.si === si && !this.drag;
+        g.fillStyle = sel ? TLC.sylSel : (hov ? TLC.sylHover : (li % 2 ? TLC.sylB : TLC.sylA));
+        g.fillRect(x, G.sylY + 3 * d, w - 1, G.syl - 7 * d);
         if (sel) {
-          g.strokeStyle = prim ? '#ffffff' : '#ff2fd0'; g.lineWidth = prim ? 1.6 * d : 1 * d;
-          g.strokeRect(x + .5, G.sylY + 3.5, w - 2, G.syl - 8);
+          g.strokeStyle = prim ? TLC.white : TLC.acc; g.lineWidth = (prim ? 1.6 : 1) * d;
+          g.strokeRect(x + .5, G.sylY + 3 * d + .5, w - 2, G.syl - 7 * d - 1);
+        } else if (hov) {
+          g.strokeStyle = TLC.accDim; g.lineWidth = 1;
+          g.strokeRect(x + .5, G.sylY + 3 * d + .5, w - 2, G.syl - 7 * d - 1);
         }
-        g.fillStyle = sel ? '#ff2fd0' : '#31f6ff';
-        g.fillRect(x, G.sylY + 3, 2 * d, G.syl - 7);
+        g.fillStyle = sel ? TLC.white : TLC.acc;
+        g.fillRect(x, G.sylY + 3 * d, 2 * d, G.syl - 7 * d);
         if (w > 15 * d) {
           g.save(); g.beginPath(); g.rect(x, G.sylY, w - 2, G.syl); g.clip();
-          g.fillStyle = sel ? '#fff' : '#a9b8ec';
+          g.fillStyle = sel ? TLC.white : TLC.txt;
           g.fillText(s.t.trim(), x + 5 * d, G.sylY + G.syl / 2);
           g.restore();
         }
       });
     });
-
-    this.dirty = false;
-    this.updateStat();
+    this.dirtyBlocks = false;
   },
 
   updateStat() {
-    const all = allSyls();
-    const done = all.filter(o => o.s.t0 != null).length;
-    $('#tlStat').textContent = `${done}/${all.length} syllabes calées`;
+    const st = $('#tlStat'); if (st) st.textContent = `${Math.round(S.tlZoom)} px/s` + (S.snap ? ' · aimant' : '');
     const n = selCount();
-    $('#tlSel').textContent = n === 0 ? '—' : (n === 1 ? '1 syllabe' : `${n} syllabes`);
+    const se = $('#tlSel'); if (se) se.textContent = n === 0 ? '—' : (n === 1 ? '1 syllabe' : `${n} syllabes`);
   },
 
   /* ---------------------------------------------------------- overlays --- */
   draw() {
     if (!this.c.width) return;
-    if (this.dirty) this.buildStatic();
+    if (this.dirty) this.buildView();
+    if (this.dirtyBlocks) this.buildBlocks();
     const g = this.g, W = this.c.width, H = this.c.height, d = this.dpr;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
-    g.drawImage(this.stat, 0, 0);
+    g.drawImage(this.view, 0, 0);
+    g.drawImage(this.blk, 0, 0);
     const G = this.geo();
 
-    /* lasso */
+    /* lasso — borné dans le temps, pas en pixels : le défilement auto ne le déforme pas */
     if (this.drag && this.drag.mode === 'lasso') {
-      const { x0, y0, x1, y1 } = this.drag;
-      const rx = Math.min(x0, x1), ry = Math.min(y0, y1);
-      g.fillStyle = 'rgba(49,246,255,.12)'; g.fillRect(rx, ry, Math.abs(x1 - x0), Math.abs(y1 - y0));
-      g.strokeStyle = '#31f6ff'; g.lineWidth = 1;
-      g.strokeRect(rx + .5, ry + .5, Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const dr = this.drag;
+      const x0 = this.t2x(dr.ta), x1 = this.t2x(dr.tb);
+      const rx = Math.min(x0, x1), ry = Math.min(dr.y0, dr.y1);
+      g.fillStyle = TLC.lassoFill; g.fillRect(rx, ry, Math.abs(x1 - x0), Math.abs(dr.y1 - dr.y0));
+      g.strokeStyle = TLC.acc; g.lineWidth = 1;
+      g.strokeRect(rx + .5, ry + .5, Math.abs(x1 - x0), Math.abs(dr.y1 - dr.y0));
     }
 
-    /* snap guide */
+    /* guide d'aimantation */
     if (this.snapGuide != null) {
       const x = Math.round(this.t2x(this.snapGuide)) + .5;
-      g.strokeStyle = '#ffb02f'; g.lineWidth = 1;
+      g.strokeStyle = TLC.snap; g.lineWidth = 1;
       g.setLineDash([4 * d, 3 * d]);
       g.beginPath(); g.moveTo(x, G.laneY); g.lineTo(x, H); g.stroke();
       g.setLineDash([]);
     }
 
-    /* razor cursor */
+    /* lame */
     if (S.tool === 'C' && this.hoverT != null && !this.drag) {
       const x = Math.round(this.t2x(this.hoverT)) + .5;
-      g.strokeStyle = '#a6ff2f'; g.lineWidth = 1;
+      g.strokeStyle = TLC.razor; g.lineWidth = 1;
       g.beginPath(); g.moveTo(x, G.sylY); g.lineTo(x, H); g.stroke();
     }
 
-    /* playhead + grab handle */
+    /* temps sous le curseur, dans la règle */
+    if (this.hoverX != null && !this.drag && !this.onHead) {
+      const x = Math.round(this.hoverX) + .5;
+      g.strokeStyle = TLC.cursor; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, G.laneY); g.stroke();
+      this.label(g, fmtTime(this.x2t(this.hoverX)), x + 6 * d, 1, TLC.cursor, TLC.cursorTxt);
+    }
+
+    /* tête de lecture + poignée */
     const px = Math.round(this.t2x(S.cur)) + .5;
     if (px >= -12 && px <= W + 12) {
       const hot = this.onHead || (this.drag && this.drag.mode === 'scrub');
-      g.strokeStyle = hot ? '#ffffff' : '#a6ff2f';
+      g.strokeStyle = hot ? TLC.white : TLC.head;
       g.lineWidth = (hot ? 2 : 1.4) * d;
       g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H); g.stroke();
       const s = (hot ? 7 : 5) * d;
-      g.fillStyle = hot ? '#ffffff' : '#a6ff2f';
+      g.fillStyle = hot ? TLC.white : TLC.head;
       g.beginPath();
       g.moveTo(px - s, 0); g.lineTo(px + s, 0); g.lineTo(px, s * 1.5); g.fill();
-      if (hot) {                       // time read-out attached to the head
-        const lbl = fmtTime(S.cur);
-        g.font = `${10 * d}px ui-monospace,Consolas,monospace`;
-        const tw = g.measureText(lbl).width + 8 * d;
-        const bx = clamp(px + 7 * d, 0, Math.max(0, W - tw));
-        g.fillStyle = 'rgba(11,14,28,.94)';
-        g.fillRect(bx, 1, tw, 14 * d);
-        g.strokeStyle = '#a6ff2f'; g.lineWidth = 1;
-        g.strokeRect(bx + .5, 1.5, tw - 1, 14 * d - 1);
-        g.fillStyle = '#a6ff2f'; g.textBaseline = 'middle';
-        g.fillText(lbl, bx + 4 * d, 1 + 7 * d);
-      }
+      if (hot) this.label(g, fmtTime(S.cur), px + 7 * d, 1, TLC.head, TLC.head);
     }
+  },
+
+  /** Petite étiquette monospace sur fond sombre. */
+  label(g, txt, x, y, border, color) {
+    const d = this.dpr, W = this.c.width;
+    g.font = `${10 * d}px ${TLC.font}`; g.textBaseline = 'middle';
+    const tw = g.measureText(txt).width + 8 * d;
+    const bx = clamp(x, 0, Math.max(0, W - tw));
+    g.fillStyle = TLC.labelBg; g.fillRect(bx, y, tw, 14 * d);
+    g.strokeStyle = border; g.lineWidth = 1; g.strokeRect(bx + .5, y + .5, tw - 1, 14 * d - 1);
+    g.fillStyle = color; g.fillText(txt, bx + 4 * d, y + 7 * d);
   },
 
   /* ------------------------------------------------------ hit testing --- */
@@ -4852,9 +5090,9 @@ const TL = {
   },
 
   /** Le bloc sous le pointeur. Quand deux blocs se touchent, celui qui
-      CONTIENT le pointeur gagne ; les poignées de bord ne prennent que
-      les quelques pixels proches du bord, et seulement sur un bloc assez
-      large pour garder un corps saisissable.                              */
+      CONTIENT le pointeur gagne. Les poignées de bord prennent 6 px sur un
+      bloc large ; sur un bloc étroit elles se réduisent à 30 % de chaque
+      côté, pour rester saisissables sans zoomer.                            */
   hitSyl(mx, my) {
     const G = this.geo();
     if (my < G.sylY || my > G.sylY + G.syl) return null;
@@ -4872,9 +5110,10 @@ const TL = {
         const score = (mx >= x && mx <= x + w) ? 0 : Math.min(dl, dr);
         if (score > bestScore || (score === bestScore && best && dl >= best.dl)) continue;
         let edge = 'M';
-        if (w >= grab * 2 + 4 * d) {
-          if (dl <= grab && dl <= dr) edge = 'L';
-          else if (dr <= grab) edge = 'R';
+        const gz = w >= grab * 2 + 4 * d ? grab : Math.max(2 * d, w * .3);
+        if (w >= 6 * d) {
+          if (dl <= gz && dl <= dr) edge = 'L';
+          else if (dr <= gz) edge = 'R';
         }
         best = { li, si, edge, x, w, t0: s.t0, t1: e, dl };
         bestScore = score;
@@ -4903,7 +5142,8 @@ const TL = {
   startScrub() {
     this.scrubWasPlaying = S.playing;
     if (S.playing) { S.cur = now(); stopSrc(); S.holdAt = null; setPlaying(false); }
-    document.body.style.cursor = 'ew-resize';
+    this.c.style.cursor = 'ew-resize';
+    this.resumeFollow();
   },
 
   scrubTo(t, noSnap) {
@@ -4916,14 +5156,14 @@ const TL = {
     const vis = this.visSpan();
     if (S.cur < S.tlScroll + vis * .04 || S.cur > S.tlScroll + vis * .96) {
       S.tlScroll = Math.max(0, S.cur - vis * .5);
-      this.dirty = true;
+      this.dirty = true; this.dirtyBlocks = true;
     }
     this.repaint();
     requestRender();
   },
 
   endScrub() {
-    document.body.style.cursor = '';
+    this.c.style.cursor = '';
     this.snapGuide = null;
     if (this.scrubWasPlaying) play(S.cur);
     else Scene.sendClock(true);
@@ -4953,7 +5193,9 @@ const TL = {
   },
 
   /* ----------------------------------------------------------- snapping --- */
-  /** Snap `t`, ignoring the syllables being dragged. Records the guide. */
+  /** Aimante `t` : tête de lecture, bords des syllabes voisines, puis les
+      attaques détectées dans l'audio, puis la grille de 10 ms. Les syllabes
+      en train de bouger (`ignore`) ne sont jamais des cibles.               */
   snapTime(t, ignore, noSnap) {
     this.snapGuide = null;
     if (!S.snap || noSnap) return t;
@@ -4967,15 +5209,21 @@ const TL = {
       const L = S.lines[li];
       for (let si = 0; si < L.syls.length; si++) {
         if (skip.has(sk(li, si))) continue;
-        const s = L.syls[si]; if (s.t0 == null || s.t0 < t0 || s.t0 > t1) continue;
-        test(s.t0); test(sylEnd(L, si));
+        const s = L.syls[si]; if (s.t0 == null) continue;
+        const e = sylEnd(L, si);
+        if ((s.t0 < t0 || s.t0 > t1) && (e == null || e < t0 || e > t1)) continue;
+        test(s.t0); test(e);
       }
     }
+    if (best == null && typeof Onsets !== 'undefined' && Onsets.ready()) test(Onsets.nearest(t, tol));
     if (best != null) { this.snapGuide = best; return best; }
     return Math.round(t * 100) / 100;           // 10 ms grid fallback
   },
 
   /* ------------------------------------------------------------- bornes --- */
+  /** Fin « dure » d'une voisine : sa fin explicite, sinon juste après son début. */
+  hardEnd(s) { return s.t1 != null ? s.t1 : s.t0 + MIN_SYL; },
+
   /** Intervalle de décalage permis pour un groupe : jamais avant 0, jamais à
       travers une voisine de la même ligne qui ne fait pas partie du groupe. */
   moveBounds(items, keys) {
@@ -4985,7 +5233,7 @@ const TL = {
       lo = Math.max(lo, -it.o0);
       for (let j = it.si - 1; j >= 0; j--) {
         const n = L.syls[j]; if (n.t0 == null) continue;
-        if (!keys.has(sk(it.li, j))) lo = Math.max(lo, n.t0 + MIN_SYL - it.o0);
+        if (!keys.has(sk(it.li, j))) lo = Math.max(lo, this.hardEnd(n) - it.o0);
         break;
       }
       for (let j = it.si + 1; j < L.syls.length; j++) {
@@ -5016,11 +5264,11 @@ const TL = {
       const h = this.hitSyl(mx, my);
       if (h) {
         if (!selHas(h.li, h.si)) selOne(h.li, h.si);
-        this.invalidate(); renderSylList();
+        this.invalidateBlocks(); renderSylList();
         ctxMenuSyl(e.clientX, e.clientY, h);
       } else {
         const li = this.hitLine(mx, my);
-        if (li != null) { selLine(li); this.invalidate(); renderSylList(); ctxMenuLine(e.clientX, e.clientY, li); }
+        if (li != null) { selLine(li); this.invalidateBlocks(); renderSylList(); ctxMenuLine(e.clientX, e.clientY, li); }
         else ctxMenuEmpty(e.clientX, e.clientY, this.x2t(mx));
       }
     });
@@ -5034,14 +5282,15 @@ const TL = {
     c.addEventListener('lostpointercapture', e => { if (this.drag) this.onUp(e); });
     c.addEventListener('pointerleave', () => {
       if (this.drag) return;
-      $('#tlTip').style.display = 'none'; this.hoverT = null;
+      this.hideTip(); this.hoverT = null; this.hoverX = null;
+      if (this.hoverHit) { this.hoverHit = null; this.invalidateBlocks(); }
       if (this.onHead) this.onHead = false;
       this.repaint();
     });
     c.addEventListener('dblclick', e => {
       const [mx, my] = this.local(e);
       const z = this.zone(my);
-      if (z === 'ruler' || z === 'wave') { zoomFit(); return; }
+      if (z === 'ruler' || z === 'wave') { seek(this.curBeforeDown); zoomFit(); return; }   // la tête ne bouge pas
       const h = this.hitSyl(mx, my);
       const li = h ? h.li : this.hitLine(mx, my);
       if (li != null) { selLine(li); zoomSelection(); renderSylList(); }
@@ -5055,8 +5304,8 @@ const TL = {
       // molette : zoom · Maj ou geste horizontal (pavé tactile) : défilement
       if (e.shiftKey || Math.abs(dx) > Math.abs(dy)) {
         const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-        S.tlScroll += delta / (S.tlZoom * this.dpr) * this.dpr;
-        this.clampScroll(); this.invalidate();
+        S.tlScroll += delta / S.tlZoom;
+        this.clampScroll(); this.userScrolled(); this.invalidate();
       } else if (dy) {
         this.setZoom(S.tlZoom * Math.pow(1.0018, -dy), mx);
       }
@@ -5072,6 +5321,7 @@ const TL = {
     const c = this.c;
     if (this.drag) return;
     const [mx, my] = this.local(e);
+    const d = this.dpr;
 
     /* clic molette : saisir la timeline pour la faire glisser */
     if (e.button === 1) {
@@ -5079,15 +5329,24 @@ const TL = {
       capturePointer(c, e);
       this.drag = { mode: 'pan', x0: mx, s0: S.tlScroll };
       c.style.cursor = 'grabbing';
+      this.userScrolled();
       return;
     }
     if (e.button !== 0) return;
     hideCtx();
-    capturePointer(c, e);
+    this.hideTip();
     const z = this.zone(my);
 
-    /* règle et onde : prise en main de la tête de lecture */
+    /* règle et onde : prise en main de la tête de lecture.
+       Le second clic d'un double-clic ne déplace rien : « voir tout » ne
+       doit pas faire sauter la tête.                                     */
     if (z === 'ruler' || z === 'wave') {
+      const nowMs = performance.now();
+      const dbl = nowMs - this.lastDownAt < 350 && Math.abs(mx - this.lastDownX) < 6 * d;
+      this.lastDownAt = nowMs; this.lastDownX = mx;
+      if (dbl) return;
+      this.curBeforeDown = S.cur;
+      capturePointer(c, e);
       const grabbed = this.nearHead(mx);
       this.startScrub();
       this.drag = { mode: 'scrub', grabbed };
@@ -5095,6 +5354,7 @@ const TL = {
       this.repaint();
       return;
     }
+    capturePointer(c, e);
 
     /* piste des lignes : sélectionner la ligne, la glisser en bloc */
     if (z === 'lane') {
@@ -5102,12 +5362,13 @@ const TL = {
       if (li == null) { this.drag = { mode: 'scrub', grabbed: false }; this.startScrub(); this.scrubTo(this.x2t(mx), true); return; }
       selLine(li);
       const items = S.lines[li].syls.map((s, si) => ({ li, si, o0: s.t0, o1: s.t1 })).filter(o => o.o0 != null);
+      const after = S.ripple ? this.linesAfter(li) : null;
       this.drag = {
         mode: 'line', li, x0: mx, grab: this.x2t(mx), pending: true, moved: false,
-        items, keys: new Set(items.map(o => sk(o.li, o.si))), prim: items[0],
-        after: S.ripple ? this.linesAfter(li) : null, seekTo: lineSpan(S.lines[li])[0]
+        items, keys: new Set(items.concat(after || []).map(o => sk(o.li, o.si))), prim: items[0],
+        after, seekTo: lineSpan(S.lines[li])[0]
       };
-      renderSylList(); this.invalidate();
+      renderSylList(); this.invalidateBlocks();
       return;
     }
     if (z !== 'syl') { this.releaseCapture(e); return; }
@@ -5121,12 +5382,14 @@ const TL = {
       return;
     }
 
-    /* lasso dans le vide */
+    /* lasso dans le vide — Alt retire de la sélection */
     if (!h) {
-      const add = e.ctrlKey || e.metaKey || e.shiftKey;
-      if (!add) { selClear(); renderSylList(); }
-      this.drag = { mode: 'lasso', x0: mx, y0: my, x1: mx, y1: my, add };
-      this.invalidate();
+      const sub = e.altKey;
+      const add = !sub && (e.ctrlKey || e.metaKey || e.shiftKey);
+      if (!add && !sub) { selClear(); renderSylList(); }
+      const ta = this.x2t(mx);
+      this.drag = { mode: 'lasso', ta, tb: ta, y0: my, y1: my, add, sub };
+      this.invalidateBlocks();
       return;
     }
 
@@ -5134,7 +5397,7 @@ const TL = {
     if (e.shiftKey) selRangeTo(h.li, h.si);
     else if (e.ctrlKey || e.metaKey) {
       selToggle(h.li, h.si);
-      if (!selHas(h.li, h.si)) { renderSylList(); this.invalidate(); this.releaseCapture(e); return; }
+      if (!selHas(h.li, h.si)) { renderSylList(); this.invalidateBlocks(); this.releaseCapture(e); return; }
     }
     else if (!selHas(h.li, h.si)) { selOne(h.li, h.si); seek(h.t0); }
     else { S.sel = { line: h.li, syl: h.si }; selectOnUp = true; }   // un clic sans glisser réduira la sélection
@@ -5142,15 +5405,14 @@ const TL = {
     const items = (h.edge === 'M' ? selList() : [{ li: h.li, si: h.si, s: S.lines[h.li].syls[h.si] }])
       .filter(o => o.s.t0 != null)
       .map(o => ({ li: o.li, si: o.si, o0: o.s.t0, o1: o.s.t1, oe: sylEnd(S.lines[o.li], o.si) }));
-    const keys = new Set(items.map(o => sk(o.li, o.si)));
     const prim = items.find(o => o.li === h.li && o.si === h.si) || items[0];
+    const after = S.ripple && h.edge === 'M' ? this.afterOf(items) : null;
     this.drag = {
       mode: h.edge === 'M' ? 'move' : (h.edge === 'L' ? 'edgeL' : 'edgeR'),
       x0: mx, grab: this.x2t(mx), pending: true, moved: false, selectOnUp, h,
-      items, keys, prim,
-      after: S.ripple && h.edge === 'M' ? this.afterOf(items) : null
+      items, keys: new Set(items.concat(after || []).map(o => sk(o.li, o.si))), prim, after
     };
-    renderSylList(); this.invalidate();
+    renderSylList(); this.invalidateBlocks();
   },
 
   onMove(e) {
@@ -5164,7 +5426,7 @@ const TL = {
       return;
     }
     if (d.mode === 'scrub') { this.scrubTo(this.x2t(mx), e.altKey); return; }
-    if (d.mode === 'lasso') { d.x1 = mx; d.y1 = my; this.autoScroll(mx); this.repaint(); return; }
+    if (d.mode === 'lasso') { d.tb = this.x2t(mx); d.y1 = my; this.autoScroll(mx); this.repaint(); return; }
 
     if (d.pending) {
       if (Math.abs(mx - d.x0) < DRAG_PX * this.dpr) return;
@@ -5178,7 +5440,7 @@ const TL = {
 
     const raw = this.x2t(mx) - d.grab;
     const noSnap = e.altKey;
-    let dt = 0;
+    let dt = 0, tipTxt = '';
 
     if (d.mode === 'edgeL' || d.mode === 'edgeR') {
       const p = d.prim, s = S.lines[p.li].syls[p.si];
@@ -5186,32 +5448,36 @@ const TL = {
       const end = p.oe != null ? p.oe : p.o0 + .3;
       if (d.mode === 'edgeL') {
         const nt = this.snapTime(p.o0 + raw, d.keys, noSnap);
-        const lo = prev ? prev.t0 + MIN_SYL : 0;
-        s.t0 = clamp(nt, lo, end - MIN_SYL);
+        const lo = prev ? this.hardEnd(prev) : 0;
+        s.t0 = clamp(nt, lo, Math.max(lo, end - MIN_SYL));
         dt = s.t0 - p.o0;
+        tipTxt = `début ${fmtTime(s.t0)}   ${this.fmtDelta(dt)}`;
       } else {
         const nt = this.snapTime(end + raw, d.keys, noSnap);
         const hi = next ? next.t0 : Infinity;
         s.t1 = clamp(nt, s.t0 + MIN_SYL, Math.max(s.t0 + MIN_SYL, hi));
         dt = s.t1 - end;
+        tipTxt = `fin ${fmtTime(s.t1)}   ${this.fmtDelta(dt)}   ${Math.round((s.t1 - s.t0) * 1000)} ms`;
       }
     } else if (d.mode === 'move') {
       const nt = this.snapTime(d.prim.o0 + raw, d.keys, noSnap);
       const moving = d.after ? d.items.concat(d.after) : d.items;
-      const keys = d.after ? new Set([...d.keys, ...d.after.map(o => sk(o.li, o.si))]) : d.keys;
-      const [lo, hi] = this.moveBounds(moving, keys);
+      const [lo, hi] = this.moveBounds(moving, d.keys);
       dt = clamp(nt - d.prim.o0, lo, hi);
       for (const it of moving) {
         const s = S.lines[it.li].syls[it.si];
         s.t0 = it.o0 + dt;
         if (it.o1 != null) s.t1 = it.o1 + dt;
       }
+      const s = S.lines[d.prim.li].syls[d.prim.si];
+      tipTxt = `${fmtTime(s.t0)} → ${fmtTime(sylEnd(S.lines[d.prim.li], d.prim.si))}   ${this.fmtDelta(dt)}`
+        + (moving.length > 1 ? `   (${moving.length} syllabes)` : '');
     } else if (d.mode === 'line') {
       const nt = this.snapTime(d.prim.o0 + raw, d.keys, noSnap);
       const li = d.li;
       let lo = -Math.min(...d.items.map(o => o.o0)), hi = Infinity;
-      const prevSp = li > 0 ? this.spanBefore(li) : null;
-      if (prevSp != null) lo = Math.max(lo, prevSp + MIN_SYL - d.prim.o0);
+      const prevEnd = li > 0 ? this.spanBefore(li) : null;
+      if (prevEnd != null) lo = Math.max(lo, prevEnd + MIN_SYL - d.prim.o0);
       if (!d.after) { const nx = this.spanAfter(li); if (nx != null) hi = nx - MIN_SYL - Math.max(...d.items.map(o => o.o1 != null ? o.o1 : o.o0)); }
       dt = clamp(nt - d.prim.o0, lo, Math.max(lo, hi));
       for (const it of d.items.concat(d.after || [])) {
@@ -5219,12 +5485,17 @@ const TL = {
         s.t0 = it.o0 + dt;
         if (it.o1 != null) s.t1 = it.o1 + dt;
       }
+      const sp = lineSpan(S.lines[li]);
+      tipTxt = `ligne ${li + 1}   ${fmtTime(sp[0])} → ${fmtTime(sp[1])}   ${this.fmtDelta(dt)}`;
     }
     d.moved = true;
-    this.invalidate();
+    this.showTip(e, tipTxt);
+    this.invalidateBlocks();
     requestRender();
     docChanged();
   },
+
+  fmtDelta(dt) { const ms = Math.round(dt * 1000); return (ms > 0 ? '+' : '') + ms + ' ms'; },
 
   onUp(e) {
     const d = this.drag;
@@ -5233,37 +5504,47 @@ const TL = {
     this.releaseCapture(e);
     this.c.style.cursor = '';
     this.snapGuide = null;
+    this.hideTip();
 
     if (d.mode === 'pan') { this.invalidate(); return; }
     if (d.mode === 'scrub') { this.endScrub(); return; }
-    if (d.mode === 'lasso') { this.applyLasso(d); renderSylList(); this.invalidate(); return; }
+    if (d.mode === 'lasso') { this.applyLasso(d); renderSylList(); this.invalidateBlocks(); return; }
 
     if (d.pending) {
       // simple clic : aucun timing ne bouge
       if (d.mode === 'line') { seek(d.seekTo); }
       else if (d.selectOnUp) { selOne(d.h.li, d.h.si); seek(d.h.t0); }
-      renderSylList(); this.invalidate();
+      renderSylList(); this.invalidateBlocks();
       return;
     }
     if (d.moved) {
       refreshDuration();
+      if (S.loop) {                       // la boucle suit la ligne qu'on vient de déplacer
+        const L = S.lines[S.sel.line], sp = L && lineSpan(L);
+        S.loop = sp ? [Math.max(0, sp[0] - .35), sp[1] + .35] : null;
+        this.invalidate();
+      }
+      Undo.doc.scheduleCheck();           // le document a changé : modifié, autosave
       renderSylList(); requestRender();
     }
-    this.invalidate();
+    this.invalidateBlocks();
   },
 
+  /** Annule le geste en cours et remet tout comme avant (Échap, perte du pointeur). */
   cancelDrag() {
     const d = this.drag; if (!d) return;
     this.drag = null; this.snapGuide = null; this.c.style.cursor = '';
+    this.hideTip();
     if (d.mode === 'scrub') { this.endScrub(); return; }
     if (d.moved && d.items) {           // on remet tout comme avant le geste
       for (const it of d.items.concat(d.after || [])) {
-        const s = S.lines[it.li].syls[it.si];
+        const L = S.lines[it.li], s = L && L.syls[it.si];
         if (s) { s.t0 = it.o0; s.t1 = it.o1; }
       }
       renderSylList(); requestRender();
+      toast('Geste annulé');
     }
-    this.invalidate();
+    this.invalidateBlocks();
   },
 
   releaseCapture(e) {
@@ -5279,34 +5560,48 @@ const TL = {
     else if (mx > W - edge) v = mx - (W - edge);
     if (!v) return;
     S.tlScroll += v / (S.tlZoom * this.dpr) * .25;
-    this.clampScroll(); this.dirty = true;
+    this.clampScroll(); this.dirty = true; this.dirtyBlocks = true;
   },
+
+  showTip(e, txt) {
+    const tip = $('#tlTip'), c = this.c;
+    if (!txt) { this.hideTip(); return; }
+    tip.style.display = 'block';
+    tip.textContent = txt;
+    const r = c.getBoundingClientRect();
+    tip.style.left = clamp(e.clientX - r.left + 12, 0, Math.max(0, r.width - tip.offsetWidth - 4)) + 'px';
+    tip.style.top = Math.max(0, e.clientY - r.top - 28) + 'px';
+  },
+  hideTip() { const tip = $('#tlTip'); if (tip) tip.style.display = 'none'; },
 
   hover(e, mx, my) {
     const c = this.c;
     const z = this.zone(my);
     this.hoverT = z === 'syl' ? this.x2t(mx) : null;
-    if (S.tool === 'C') this.repaint();
+    this.hoverX = mx;
     const onRuler = z === 'ruler' || z === 'wave';
     const head = onRuler && this.nearHead(mx);
-    if (head !== this.onHead) { this.onHead = head; this.repaint(); }
+    if (head !== this.onHead) this.onHead = head;
     const h = z === 'syl' ? this.hitSyl(mx, my) : null;
     const lineHit = z === 'lane' ? this.hitLine(mx, my) : null;
+    const hk = h ? { li: h.li, si: h.si } : null;
+    if ((hk && (!this.hoverHit || this.hoverHit.li !== hk.li || this.hoverHit.si !== hk.si)) || (!hk && this.hoverHit)) {
+      this.hoverHit = hk; this.invalidateBlocks();
+    }
+    this.repaint();
     c.style.cursor = head ? 'ew-resize'
       : S.tool === 'C' ? 'crosshair'
         : h ? (h.edge === 'M' ? 'grab' : 'ew-resize')
           : lineHit != null ? 'grab'
-            : (onRuler || z === 'lane') ? 'text' : 'default';
-    const tip = $('#tlTip');
+            : onRuler ? 'col-resize' : 'default';
     if (h) {
       const L = S.lines[h.li], s = L.syls[h.si];
-      tip.style.display = 'block';
-      tip.textContent = `${h.li + 1}·${h.si + 1}  « ${s.t.trim()} »   ${fmtTime(s.t0)} → ${fmtTime(h.t1)}   ${Math.round((h.t1 - s.t0) * 1000)} ms`
-        + (h.edge !== 'M' ? (h.edge === 'L' ? '   ⇤ début' : '   fin ⇥') : '');
-      const r = c.getBoundingClientRect();
-      tip.style.left = clamp(e.clientX - r.left + 12, 0, Math.max(0, r.width - tip.offsetWidth - 4)) + 'px';
-      tip.style.top = Math.max(0, e.clientY - r.top - 28) + 'px';
-    } else tip.style.display = 'none';
+      this.showTip(e, `${h.li + 1}·${h.si + 1}  « ${s.t.trim()} »   ${fmtTime(s.t0)} → ${fmtTime(h.t1)}   ${Math.round((h.t1 - s.t0) * 1000)} ms`
+        + (h.edge !== 'M' ? (h.edge === 'L' ? '   ⇤ début' : '   fin ⇥') : ''));
+    } else if (lineHit != null) {
+      const sp = lineSpan(S.lines[lineHit]);
+      this.showTip(e, `ligne ${lineHit + 1}   ${fmtTime(sp[0])} → ${fmtTime(sp[1])}   glisser pour déplacer en bloc`);
+    } else this.hideTip();
   },
 
   /** Syllables located after the last dragged one — used by ripple mode. */
@@ -5326,24 +5621,43 @@ const TL = {
       S.lines[j].syls.forEach((s, si) => { if (s.t0 != null) out.push({ li: j, si, o0: s.t0, o1: s.t1 }); });
     return out;
   },
-  spanBefore(li) { for (let j = li - 1; j >= 0; j--) { const sp = lineSpan(S.lines[j]); if (sp) return sp[0]; } return null; },
+  /** Fin de la ligne calée précédente / début de la suivante. */
+  spanBefore(li) { for (let j = li - 1; j >= 0; j--) { const sp = lineSpan(S.lines[j]); if (sp) return sp[1]; } return null; },
   spanAfter(li) { for (let j = li + 1; j < S.lines.length; j++) { const sp = lineSpan(S.lines[j]); if (sp) return sp[0]; } return null; },
 
   applyLasso(d) {
     const G = this.geo();
     const ry = Math.min(d.y0, d.y1), ry2 = Math.max(d.y0, d.y1);
     if (ry2 < G.sylY || ry > G.sylY + G.syl) return;
-    if (Math.abs(d.x1 - d.x0) < DRAG_PX * this.dpr) return;      // simple clic dans le vide
-    const a = this.x2t(Math.min(d.x0, d.x1)), b = this.x2t(Math.max(d.x0, d.x1));
-    if (!d.add) selClear();
+    const a = Math.min(d.ta, d.tb), b = Math.max(d.ta, d.tb);
+    if ((b - a) * S.tlZoom < DRAG_PX) return;                      // simple clic dans le vide
+    if (!d.add && !d.sub) selClear();
     let first = null;
     S.lines.forEach((L, li) => L.syls.forEach((s, si) => {
       if (s.t0 == null) return;
       const e = sylEnd(L, si); if (e == null) return;
-      if (e >= a && s.t0 <= b) { S.selSet.add(sk(li, si)); if (!first) first = { li, si }; }
+      if (e >= a && s.t0 <= b) {
+        if (d.sub) S.selSet.delete(sk(li, si));
+        else { S.selSet.add(sk(li, si)); if (!first) first = { li, si }; }
+      }
     }));
     if (first) S.sel = { line: first.li, syl: first.si };
   }
+};
+
+/* Couleurs du canevas — lues dans les variables CSS au premier dessin, pour
+   que la timeline suive le thème de l'interface.                           */
+const TLC = {
+  font: 'ui-monospace,Consolas,monospace',
+  bg: '#15171a', ruler: '#1a1d21', rulerTxt: '#9aa3ad', gridMajor: '#2c3139', gridMinor: '#22262c',
+  waveBg: '#121417', wave: '#3b7f93', waveMid: '#243a42', onset: 'rgba(63,184,216,.35)', onsetStrong: 'rgba(63,184,216,.7)',
+  loopFill: 'rgba(63,184,216,.07)', loopLine: 'rgba(63,184,216,.5)',
+  laneBg: '#191c20', laneLine: '#2c3139',
+  line: '#242930', lineAct: '#1f3640', lineEdge: '#343a43',
+  sylA: '#262c34', sylB: '#232931', sylSel: '#2a5f70', sylHover: '#2d343d',
+  acc: '#3fb8d8', accDim: 'rgba(63,184,216,.5)', white: '#ffffff', txt: '#e6e8eb', dim: '#9aa3ad', faint: '#5f6771',
+  head: '#3fb8d8', snap: '#e0a537', razor: '#e05a5a', cursor: 'rgba(230,232,235,.35)', cursorTxt: '#9aa3ad',
+  lassoFill: 'rgba(63,184,216,.12)', labelBg: 'rgba(21,23,26,.94)'
 };
 
 /* Le compteur de l'en-tête se pilote aussi à la souris : clic maintenu puis
@@ -5496,21 +5810,35 @@ function afterStructuralEdit() {
   renderSylList(); TL.invalidate(); requestRender();
 }
 
-/** Nudge every selected syllable. */
+/** Nudge every selected syllable — same collision rules as a mouse drag. */
 function nudgeSelection(dt) {
   const sel = selList().filter(o => o.s.t0 != null);
-  if (!sel.length) return;
-  Undo.snap('décaler');
+  if (!sel.length) { toast('Sélectionne une syllabe calée', true); return; }
+  const items = sel.map(o => ({ li: o.li, si: o.si, o0: o.s.t0, o1: o.s.t1 }));
+  const keys = new Set(items.map(o => sk(o.li, o.si)));
+  const [lo, hi] = TL.moveBounds(items, keys);
+  dt = clamp(dt, lo, hi);
+  if (Math.abs(dt) < 1e-6) { toast('Bloqué par la syllabe voisine'); return; }
+  Undo.snap('décaler', 'nudge');       // flèches tenues : une seule étape d'annulation
   sel.forEach(o => { o.s.t0 = Math.max(0, o.s.t0 + dt); if (o.s.t1 != null) o.s.t1 += dt; });
-  renderSylList(); TL.invalidate(); requestRender();
+  renderSylList(); TL.invalidateBlocks(); requestRender();
 }
-/** Anchor a selected syllable's start / end on the playhead. */
+/** Anchor a selected syllable's start / end on the playhead, without crossing its neighbours. */
 function setEdgeAtPlayhead(which) {
   const o = selList()[0]; if (!o) { toast('Sélectionne une syllabe', true); return; }
-  Undo.snap('caler sur la tête');
-  if (which === 'in') { o.s.t0 = S.cur; if (o.s.t1 != null && o.s.t1 <= o.s.t0) o.s.t1 = o.s.t0 + .1; }
-  else { if (o.s.t0 == null) o.s.t0 = Math.max(0, S.cur - .2); o.s.t1 = Math.max(o.s.t0 + .02, S.cur); }
-  renderSylList(); TL.invalidate(); requestRender();
+  const { prev, next } = TL.neighbours(o.li, o.si);
+  Undo.snap(which === 'in' ? 'début sur la tête' : 'fin sur la tête');
+  if (which === 'in') {
+    const end = o.s.t1 != null ? o.s.t1 : (next ? next.t0 : S.cur + .3);
+    const lo = prev ? (prev.t1 != null ? prev.t1 : prev.t0 + MIN_SYL) : 0;
+    o.s.t0 = clamp(S.cur, lo, Math.max(lo, end - MIN_SYL));
+    if (o.s.t1 != null && o.s.t1 <= o.s.t0) o.s.t1 = o.s.t0 + .1;
+  } else {
+    if (o.s.t0 == null) o.s.t0 = Math.max(0, S.cur - .2);
+    const hi = next ? next.t0 : Infinity;
+    o.s.t1 = clamp(S.cur, o.s.t0 + MIN_SYL, Math.max(o.s.t0 + MIN_SYL, hi));
+  }
+  renderSylList(); TL.invalidateBlocks(); requestRender();
 }
 
 /* ------------------------------------------------------- context menus --- */
@@ -5660,6 +5988,7 @@ function renderSylList() {
   refreshDuration();
   TL.updateStat();
   Steps.refresh();
+  updateUndoUi();
   if (typeof Live !== 'undefined' && S.ws === 'live') Live.renderLines();
   docChanged();
 }
@@ -5738,9 +6067,8 @@ function setTap(on, fromSel) {
   S.tapHeld = null;
   $('#bTap').classList.toggle('on', on);
   $('#tapHud').classList.toggle('on', on);
-  if (!on) { renderSylList(); return; }
+  if (!on) { renderSylList(); updateUndoUi(); return; }
 
-  Undo.snap('calage');
   const list = allSyls();
   let i;
   if (fromSel) i = Math.max(0, list.findIndex(o => o.li === S.sel.line && o.si === S.sel.syl));
@@ -5763,6 +6091,7 @@ function tap() {
   if (S.tapIdx >= list.length) { setTap(false); toast('Fin des paroles — bien joué'); return; }
   const t = tapTime();
   const e = list[S.tapIdx];
+  Undo.snap('calage', 'tap');          // une rafale de frappes = une seule étape d'annulation
   e.s.t0 = t; e.s.t1 = null;
   if (S.tapIdx > 0) {
     const pv = list[S.tapIdx - 1];
@@ -5795,12 +6124,14 @@ function tapRelease() {
   if (!s || s.t0 == null || s.t0 !== h.t0) return;
   const t = tapTime();
   if (t - s.t0 < TAP_HOLD_MIN) return;
+  Undo.snap('calage', 'tap');
   s.t1 = t;
   TL.invalidate(); requestRender(); docChanged();
 }
 
 function untap() {
-  if (S.tapIdx <= 0) return;
+  if (S.tapIdx <= 0) { toast('Début des paroles'); return; }
+  Undo.snap('annuler la frappe', 'untap');
   S.tapIdx--;
   S.tapHeld = null;
   const list = allSyls(), e = list[S.tapIdx];
@@ -6116,11 +6447,11 @@ function loop() {
 
   if (S.playing) {
     TL.clampScroll();
-    if (S.follow && !TL.drag) {
+    if (S.follow && !TL.followPaused && !TL.drag) {
       const vis = TL.visSpan();
       if (S.cur < S.tlScroll + vis * .1 || S.cur > S.tlScroll + vis * .8) {
         S.tlScroll = Math.max(0, S.cur - vis * .3);
-        TL.dirty = true;
+        TL.invalidate();
       }
     }
     TL.needs = true;
@@ -7101,6 +7432,7 @@ const Beat = {
       const bpm = Math.round(clamp(60000 / iv, 40, 240) * 10) / 10;
       if (this.src === 'song' && S.ws !== 'live') {
         // hors live : le tempo tapé devient celui du morceau (aperçu = export)
+        Undo.style.snap('tempo frappé', 'bpm');
         P.bpm = bpm;
         if (S.playing) {
           const period = 60 / bpm, tt = tapTime();
@@ -7119,7 +7451,7 @@ const Beat = {
 
   setBpm(b) {
     b = Math.round(clamp(+b || 120, 40, 240) * 10) / 10;
-    if (this.src === 'song') { P.bpm = b; this.paramsChanged(); }
+    if (this.src === 'song') { Undo.style.snap('tempo', 'bpm'); P.bpm = b; this.paramsChanged(); }
     else { this.anchorBeat = this.liveBeat(); this.anchorEpoch = epochNow(); this.bpm = b; }
     this.changed();
   },
@@ -7129,6 +7461,7 @@ const Beat = {
   resync() {
     if (this.src === 'song') {
       const period = 60 / P.bpm, tt = now();
+      Undo.style.snap('caler le temps');
       P.beatOffset = Math.round((((tt % period) + period) % period) * 1000);
       this.paramsChanged();
     } else { this.anchorBeat = Math.round(this.liveBeat()); this.anchorEpoch = epochNow(); }
@@ -7142,6 +7475,7 @@ const Beat = {
       const r = Onsets.tempo();
       if (!r) { toast('Pas assez d\'attaques nettes pour trouver le tempo', true); return; }
       if (this.src !== 'song') this.setSource('song');
+      Undo.style.snap('tempo détecté');
       P.bpm = Math.round(r.bpm * 10) / 10;
       P.beatOffset = Math.round(r.offset * 1000);
       this.paramsChanged(); this.changed();
@@ -7967,6 +8301,7 @@ function setWorkspace(ws) {
   try { localStorage.setItem('kf.ws', ws); } catch (e) { }
   if (ws === 'live') Live.enter();
   updateStageHint();
+  updateUndoUi();
   Scene.updateUi();
   requestAnimationFrame(() => { fitStage(); TL.resize(); TL.invalidate(); requestRender(); });
 }
@@ -8000,7 +8335,12 @@ function wire() {
   $('#bStop').onclick = () => stop();
   $('#bTap').onclick = () => setTap(!S.tapMode);
   $('#bExport').onclick = openExport;
-  $('#lyricsText').addEventListener('input', () => { Doc.lyricsDirty = true; Doc.touch(); });
+  /* la frappe dans les paroles est annulable comme le reste : l'instantané
+     se prend AVANT que la lettre entre (beforeinput), rafale par rafale */
+  $('#lyricsText').addEventListener('beforeinput', () => Undo.doc.snap('saisie des paroles', 'typing'));
+  $('#lyricsText').addEventListener('input', () => { Doc.lyricsDirty = true; Doc.touch(); updateUndoUi(); });
+  $('#bUndo').onclick = () => Undo.undo();
+  $('#bRedo').onclick = () => Undo.redo();
   $('#bBuild').onclick = () => rebuild(false);
   $('#bMerge').onclick = () => rebuild(true);
   $('#bSave').onclick = () => saveToLibrary();
@@ -8077,19 +8417,19 @@ function wire() {
   $('#bZoomIn').onclick = () => TL.setZoom(S.tlZoom * 1.4);
   $('#bZoomOut').onclick = () => TL.setZoom(S.tlZoom / 1.4);
   $('#bZoomFit').onclick = zoomFit;
-  const tgl = (id, key) => {
+  const tgl = (id, key, after) => {
     const b = $(id);
     b.classList.toggle('on', !!S[key]);
-    b.onclick = () => { S[key] = !S[key]; b.classList.toggle('on', S[key]); };
+    b.onclick = () => { S[key] = !S[key]; b.classList.toggle('on', S[key]); if (after) after(); };
   };
-  tgl('#ckFollow', 'follow'); tgl('#ckSnap', 'snap');
+  tgl('#ckFollow', 'follow', () => TL.resumeFollow()); tgl('#ckSnap', 'snap', () => TL.updateStat());
   tgl('#ckRipple', 'ripple'); tgl('#ckScrub', 'scrubAudio');
   bindTimeScrub();
 
   /* menus contextuels */
   addEventListener('pointerdown', e => { if (!e.target.closest || !e.target.closest('#ctx')) hideCtx(); }, true);
   addEventListener('wheel', hideCtx, { passive: true });
-  addEventListener('blur', hideCtx);
+  addEventListener('blur', () => { hideCtx(); TL.cancelDrag(); });
 
   /* glisser-déposer */
   addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
@@ -8196,7 +8536,21 @@ function onKey(e) {
   if (e.altKey && !mod && ws) { e.preventDefault(); setWorkspace(WORKSPACES[+ws[1] - 1]); return; }
   if (isTyping(e.target)) return;
   if (k === 'F1') { e.preventDefault(); openHelp(); return; }
-  if ($('#helpPanel').classList.contains('on')) { if (k === 'Escape') openHelp(false); return; }
+  if ($('#helpPanel').classList.contains('on')) {
+    if (k === 'Escape') { openHelp(false); return; }
+    if (!(mod && (low === 'z' || low === 'y'))) return;   // Ctrl+Z ferme l'aide et agit quand même
+    openHelp(false);
+  }
+
+  /* --- annuler / rétablir : la pile de l'espace actif (aucune en LIVE) --- */
+  if (mod && !e.altKey && (low === 'z' || low === 'y')) {
+    e.preventDefault();
+    if (e.repeat) return;                                  // une touche tenue n'avale pas tout l'historique
+    const redo = low === 'y' || e.shiftKey;
+    if (S.tapMode && !redo) { untap(); return; }            // en plein calage : on recule d'une syllabe
+    redo ? Undo.redo() : Undo.undo();
+    return;
+  }
 
   if (S.ws === 'live') { onKeyLive(e, k, low, mod); return; }
 
@@ -8205,9 +8559,15 @@ function onKey(e) {
 
   /* --- combinaisons --- */
   if (mod) {
-    if (low === 'a') { e.preventDefault(); selLine(S.sel.line); renderSylList(); TL.invalidate(); return; }
-    if (low === 'z') { e.preventDefault(); e.shiftKey ? Undo.redo() : Undo.undo(); return; }
-    if (low === 'y') { e.preventDefault(); Undo.redo(); return; }
+    if (low === 'a') {
+      e.preventDefault();
+      // Ctrl+A : la ligne ; une seconde fois : tout le morceau
+      const L = S.lines[S.sel.line];
+      const whole = L && L.syls.length && L.syls.every((_, si) => selHas(S.sel.line, si));
+      if (whole) { S.selSet.clear(); allSyls().forEach(o => S.selSet.add(sk(o.li, o.si))); }
+      else selLine(S.sel.line);
+      renderSylList(); TL.invalidate(); return;
+    }
     return;
   }
 
@@ -8215,8 +8575,9 @@ function onKey(e) {
     case ' ': e.preventDefault(); togglePlay(); return;
     case 'Escape':
       e.preventDefault(); hideCtx();
+      if (TL.drag) { TL.cancelDrag(); return; }           // le geste en cours est annulé, rien ne bouge
       if (S.tapMode) { setTap(false); return; }
-      selClear(); renderSylList(); TL.invalidate(); return;
+      selClear(); renderSylList(); TL.invalidateBlocks(); return;
     case 'Home': e.preventDefault(); seek(0); return;
     case 'End': e.preventDefault(); seek(S.duration); return;
     case 'Backspace':
@@ -8263,7 +8624,7 @@ function onKey(e) {
     case 'b': toggleLoop(); break;
     case 'v': setTool('V'); break;
     case 'c': setTool('C'); break;
-    case 's': S.snap = !S.snap; $('#ckSnap').classList.toggle('on', S.snap); toast('Aimantation ' + (S.snap ? 'activée' : 'désactivée')); break;
+    case 's': S.snap = !S.snap; $('#ckSnap').classList.toggle('on', S.snap); TL.updateStat(); toast('Aimantation ' + (S.snap ? 'activée' : 'désactivée')); break;
     case 'r': S.ripple = !S.ripple; $('#ckRipple').classList.toggle('on', S.ripple); toast('Décaler la suite : ' + (S.ripple ? 'activé' : 'désactivé')); break;
     case 'm': mergeSelection(); break;
     case 'i': setEdgeAtPlayhead('in'); break;
@@ -8350,36 +8711,71 @@ FFT.prototype.run = function (re, im) {
 
 /* --------------------------------------------------------------- attaques --- */
 const Onsets = {
-  cache: null,
+  cache: null, job: null,
 
+  /** Analyse complète, bloquante (quelques centaines de ms sur un morceau). */
   compute(force) {
     if (!S.buffer) return null;
-    const key = S.audioName + '|' + S.buffer.duration;
+    const key = this.keyOf();
     if (!force && this.cache && this.cache.key === key) return this.cache;
+    const st = this.begin();
+    while (this.step(st, Infinity)) { /* tout d'une traite */ }
+    return this.finish(st);
+  },
 
+  /** La même analyse, par tranches, sans figer l'interface. `done(cache)`
+      est appelé à la fin ; un autre audio chargé entre-temps annule tout. */
+  computeAsync(done) {
+    if (!S.buffer) return;
+    const key = this.keyOf();
+    if (this.cache && this.cache.key === key) { if (done) done(this.cache); return; }
+    if (this.job && this.job.key === key) { if (done) this.job.cbs.push(done); return; }
+    const st = this.begin();
+    this.job = { key, cbs: done ? [done] : [] };
+    const job = this.job;
+    const tick = () => {
+      if (this.job !== job || !S.buffer || this.keyOf() !== key) { if (this.job === job) this.job = null; return; }
+      const t0 = performance.now();
+      let more = true;
+      while (more && performance.now() - t0 < 12) more = this.step(st, 64);
+      if (more) { setTimeout(tick, 0); return; }
+      const c = this.finish(st);
+      this.job = null;
+      for (const cb of job.cbs) { try { cb(c); } catch (e) { console.warn('[attaques]', e); } }
+    };
+    setTimeout(tick, 60);
+  },
+
+  keyOf() { return S.audioName + '|' + S.buffer.duration; },
+
+  /* ---- analyse par flux spectral, découpée en begin / step / finish ---- */
+  begin() {
     const N = 1024, HOP = 512;          // 11,6 ms de résolution
-    const sr = S.buffer.sampleRate;
-    const len = S.buffer.length;
+    const sr = S.buffer.sampleRate, len = S.buffer.length;
     const a = S.buffer.getChannelData(0);
     const b = S.buffer.numberOfChannels > 1 ? S.buffer.getChannelData(1) : null;
-
     const win = new Float32Array(N);
     for (let i = 0; i < N; i++) win[i] = .5 - .5 * Math.cos(2 * Math.PI * i / (N - 1));
-
-    const fft = new FFT(N);
-    const re = new Float32Array(N), im = new Float32Array(N);
     const bins = N / 2;
-    let prev = new Float32Array(bins), cur = new Float32Array(bins);
-    const frames = Math.max(1, Math.floor((len - N) / HOP));
-    const flux = new Float32Array(frames);
-
     const wk = new Float32Array(bins);
     for (let k = 0; k < bins; k++) {
       const f = k * sr / N;
       wk[k] = f < 120 ? .15 : (f < 400 ? .6 : (f < 6000 ? 1 : .5));
     }
+    const frames = Math.max(1, Math.floor((len - N) / HOP));
+    return {
+      key: this.keyOf(), N, HOP, sr, a, b, win, wk, bins, frames, t: 0,
+      fft: new FFT(N), re: new Float32Array(N), im: new Float32Array(N),
+      prev: new Float32Array(bins), cur: new Float32Array(bins), flux: new Float32Array(frames)
+    };
+  },
 
-    for (let t = 0; t < frames; t++) {
+  /** Traite au plus `n` trames ; renvoie faux quand tout est fait. */
+  step(st, n) {
+    const { N, HOP, a, b, win, wk, bins, frames, fft, re, im, flux } = st;
+    let { prev, cur } = st;
+    const end = Math.min(frames, st.t + n);
+    for (let t = st.t; t < end; t++) {
       const off = t * HOP;
       for (let i = 0; i < N; i++) {
         const s = b ? (a[off + i] + b[off + i]) * .5 : a[off + i];
@@ -8396,7 +8792,12 @@ const Onsets = {
       flux[t] = f;
       const sw = prev; prev = cur; cur = sw;
     }
+    st.prev = prev; st.cur = cur; st.t = end;
+    return end < frames;
+  },
 
+  finish(st) {
+    const { frames, flux, sr, HOP } = st;
     const sm = new Float32Array(frames);
     for (let i = 0; i < frames; i++)
       sm[i] = (flux[Math.max(0, i - 1)] + 2 * flux[i] + flux[Math.min(frames - 1, i + 1)]) / 4;
@@ -8422,7 +8823,7 @@ const Onsets = {
       times.push(i / fps); strength.push(sm[i]); last = i;
     }
     this.cache = {
-      key,
+      key: st.key,
       times: Float32Array.from(times),
       str: Float32Array.from(strength.map(v => gmax > 0 ? v / gmax : 0))
     };
@@ -8552,10 +8953,12 @@ function snapLineToOnsets(li) {
 
 async function runOnsetAlign(scopeLines) {
   if (!S.buffer) { toast('Charge un audio d\'abord', true); return; }
+  if (!Onsets.ready()) {
+    const busy = setBusy('Analyse des attaques…');
+    await new Promise(r => Onsets.computeAsync(r));
+    busy();
+  }
   Undo.snap('caler sur les attaques');
-  toast('Analyse des attaques…');
-  await new Promise(r => setTimeout(r, 30));
-  Onsets.compute();
   let n = 0;
   for (const li of scopeLines) if (snapLineToOnsets(li)) n++;
   renderSylList(); TL.invalidate(); requestRender();
@@ -8577,6 +8980,167 @@ function snapSylToOnset() {
   renderSylList(); TL.invalidate(); requestRender();
   toast(n ? `${n} syllabe${n > 1 ? 's' : ''} aimantée${n > 1 ? 's' : ''}` : 'Déjà sur une attaque');
 }
+/* ============================================================================
+   KARAOKE FORGE — autotest
+   ----------------------------------------------------------------------------
+   `__selfTest()` rejoue en page les parcours essentiels (découpage, calage,
+   glissé, annulation, réglages, enregistrement) et renvoie la liste des
+   vérifications réussies et échouées. Inerte tant qu'on ne l'appelle pas :
+   lancé par  `npm test`  dans desktop/ (Electron, fenêtre cachée) ou par
+   `node tools/smoke.mjs`.
+   ============================================================================ */
+async function __selfTest() {
+  const passed = [], failed = [];
+  const ok = (cond, what) => { (cond ? passed : failed).push(what); if (!cond) console.warn('[autotest] échec :', what); };
+  const eq = (a, b, what) => ok(a === b, `${what} (attendu ${JSON.stringify(b)}, obtenu ${JSON.stringify(a)})`);
+  const tick = () => new Promise(r => setTimeout(r, 0));
+  const key = (k, o = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...o }));
+  const timed = () => allSyls().filter(o => o.s.t0 != null).length;
+
+  /* un WAV de 24 s (bruit léger) : le décodage audio et la forme d'onde sont testés pour de vrai */
+  function makeWav(sec) {
+    const sr = 22050, n = sr * sec, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, 'data'); v.setUint32(40, n * 2, true);
+    let seed = 7;
+    for (let i = 0; i < n; i++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; const beat = (i % (sr / 2)) < 400 ? .6 : .05; v.setInt16(44 + i * 2, ((seed / 0x7fffffff) * 2 - 1) * beat * 32767, true); }
+    return new File([buf], 'autotest.wav', { type: 'audio/wav' });
+  }
+
+  try {
+    if (Modal.close) Modal.close();                    // « travail retrouvé » éventuel
+    setWorkspace('prep');
+    Doc.forget();
+    setDocument({ lines: [], lyrics: '' });
+    unloadAudio();
+
+    /* ---- 1. audio ---- */
+    const loaded = await loadAudio(makeWav(24));
+    ok(loaded && S.buffer && S.duration > 23, 'audio WAV décodé');
+    ok(!!S.peaks, 'forme d\'onde calculée');
+
+    /* ---- 2. paroles ---- */
+    $('#lyricsText').value = 'Néon dans la nuit\nJe danse avec ton ombre\nLa lumière tombe';
+    Doc.lyricsDirty = true;
+    await rebuild(false);
+    eq(S.lines.length, 3, 'trois lignes découpées');
+    ok(allSyls().length >= 12, 'au moins douze syllabes');
+    eq(Undo.doc.undoLabel(), 'redécoupage', 'annulation nommée « redécoupage »');
+
+    /* ---- 3. calage simulé ---- */
+    setTap(true); pause();
+    ok(S.tapMode, 'mode calage actif');
+    const n = allSyls().length;
+    for (let i = 0; i < n; i++) { S.cur = 1 + i * .5; tap(); }
+    await new Promise(r => setTimeout(r, 1600));       // la dernière frappe referme le calage
+    eq(timed(), n, 'toutes les syllabes calées');
+    ok(!S.tapMode, 'calage terminé automatiquement');
+
+    /* ---- 4. annuler / rétablir : une rafale de frappes = une étape ---- */
+    const before = timed();
+    Undo.doc.undo(); await tick();
+    ok(timed() < before, 'Ctrl+Z annule le calage');
+    Undo.doc.redo(); await tick();
+    eq(timed(), before, 'Ctrl+Maj+Z rétablit le calage');
+
+    /* ---- 5. décalage au clavier : 30 appuis = 1 étape, sélection conservée ---- */
+    selOne(0, 1); renderSylList();
+    const t0 = S.lines[0].syls[1].t0;
+    for (let i = 0; i < 30; i++) nudgeSelection(.001);
+    ok(Math.abs(S.lines[0].syls[1].t0 - t0 - .03) < 1e-6, 'trente décalages de 1 ms appliqués');
+    eq(Undo.doc.undoLabel(), 'décaler', 'annulation nommée « décaler »');
+    key('z', { ctrlKey: true });
+    await tick();
+    ok(Math.abs(S.lines[0].syls[1].t0 - t0) < 1e-6, 'Ctrl+Z annule les trente décalages d\'un coup');
+    ok(selHas(0, 1), 'la sélection survit à l\'annulation');
+    eq(Undo.doc.redoLabel(), 'décaler', 'rétablir nommé « décaler »');
+
+    /* ---- 6. bornes : une syllabe ne traverse pas sa voisine ---- */
+    selOne(0, 1); renderSylList();
+    const prevT0 = S.lines[0].syls[0].t0;
+    nudgeSelection(-10);
+    ok(S.lines[0].syls[1].t0 > prevT0, 'le décalage s\'arrête sur la voisine');
+    Undo.doc.undo(); await tick();
+
+    /* ---- 7. libellés corrects en chaîne ---- */
+    selOne(1, 0); renderSylList();
+    nudgeSelection(.01);
+    await new Promise(r => setTimeout(r, 1000));        // rafale close
+    selOne(1, 1); clearTimingSelection();
+    eq(Undo.doc.undoLabel(), 'effacer le timing', 'dernière opération : effacer le timing');
+    Undo.doc.undo(); await tick();
+    eq(Undo.doc.undoLabel(), 'décaler', 'opération précédente : décaler');
+    ok(S.lines[1].syls[1].t0 != null, 'le timing effacé est revenu');
+    Undo.doc.undo(); await tick();
+
+    /* ---- 8. glissé à la souris sur la timeline, puis Échap ---- */
+    zoomFit(); TL.draw();
+    const s = S.lines[2].syls[0], r = TL.c.getBoundingClientRect(), G = TL.geo();
+    const sx = r.left + (TL.t2x(s.t0) + 8 * TL.dpr) / TL.dpr, sy = r.top + (G.sylY + G.syl / 2) / TL.dpr;
+    const pe = (type, x, y) => TL.c.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: 1, pointerId: 1, bubbles: true, isPrimary: true }));
+    const was = s.t0;
+    pe('pointerdown', sx, sy); pe('pointermove', sx + 40, sy); pe('pointermove', sx + 60, sy);
+    ok(TL.drag && TL.drag.moved, 'glissé en cours');
+    ok(s.t0 > was, 'la syllabe suit la souris');
+    key('Escape');
+    ok(!TL.drag && Math.abs(s.t0 - was) < 1e-9, 'Échap annule le glissé, la syllabe revient');
+    pe('pointerdown', sx, sy); pe('pointermove', sx + 40, sy); pe('pointerup', sx + 40, sy);
+    ok(s.t0 > was, 'glissé terminé : la syllabe a bougé');
+    eq(Undo.doc.undoLabel(), 'déplacer', 'annulation nommée « déplacer »');
+    Undo.doc.undo(); await tick();
+    ok(Math.abs(S.lines[2].syls[0].t0 - was) < 1e-9, 'Ctrl+Z annule le glissé');
+
+    /* ---- 9. réglages : pile séparée ---- */
+    const fs0 = P.fontSize;
+    setParam('fontSize', fs0 + 2);
+    ok(Undo.style.canUndo(), 'un réglage est annulable');
+    ok(Undo.doc.undoLabel() !== 'réglage « Taille »', 'le réglage n\'entre pas dans la pile des timings');
+    Undo.style.undo(); await tick();
+    eq(P.fontSize, fs0, 'Ctrl+Z en STYLE remet la taille');
+    applyPreset('TERMINAL');
+    Undo.style.undo(); await tick();
+    eq(P.fontSize, fs0, 'l\'ambiance s\'annule en une étape');
+    setWorkspace('live');
+    const before2 = S.lines[0].syls[0].t0;
+    key('z', { ctrlKey: true }); await tick();
+    eq(S.lines[0].syls[0].t0, before2, 'Ctrl+Z en LIVE ne touche à rien');
+    setWorkspace('prep');
+
+    /* ---- 10. enregistrement et état « modifié » ---- */
+    S.song.title = 'Autotest Forge'; S.song.artist = 'Robot';
+    const saved = await saveToLibrary();
+    ok(saved && S.song.id, 'morceau enregistré dans la bibliothèque');
+    ok(!Doc.dirty, 'document propre après enregistrement');
+    selOne(0, 0); nudgeSelection(.01); await tick();
+    ok(Doc.dirty, 'un décalage marque le document modifié');
+    Undo.doc.undo(); await tick();
+    ok(Doc.dirty, 'une annulation marque aussi le document modifié');
+    Doc.autosave();
+    ok(!!localStorage.getItem(Doc.KEY), 'sauvegarde automatique écrite');
+    const id = S.song.id;
+    await Lib.remove(id);
+    ok(!Lib.card(id), 'morceau de test retiré de la bibliothèque');
+    Doc.forget();
+
+    /* ---- 11. texte des paroles : annulable, resynchronisé ---- */
+    const ta = $('#lyricsText');
+    const txt = ta.value;
+    ta.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', bubbles: true }));
+    ta.value = txt + '\nNouvelle ligne'; ta.dispatchEvent(new Event('input', { bubbles: true }));
+    eq(Undo.doc.undoLabel(), 'saisie des paroles', 'la frappe est annulable');
+    Undo.doc.undo(); await tick();
+    eq(ta.value, txt, 'Ctrl+Z remet le texte');
+  } catch (e) {
+    console.error('[autotest] exception', e);
+    failed.push('exception : ' + (e && e.message || e));
+  }
+  return { ok: !failed.length, passed, failed };
+}
+if (/[?&]selftest\b/.test(location.search)) window.__selfTest = __selfTest;
+else window.__selfTest = __selfTest;
 /* ============================================================================
    KARAOKE FORGE — démarrage
    Placé en toute fin de bundle : tous les modules sont évalués avant boot().

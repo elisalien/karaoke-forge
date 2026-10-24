@@ -46,11 +46,11 @@ function loop() {
 
   if (S.playing) {
     TL.clampScroll();
-    if (S.follow && !TL.drag) {
+    if (S.follow && !TL.followPaused && !TL.drag) {
       const vis = TL.visSpan();
       if (S.cur < S.tlScroll + vis * .1 || S.cur > S.tlScroll + vis * .8) {
         S.tlScroll = Math.max(0, S.cur - vis * .3);
-        TL.dirty = true;
+        TL.invalidate();
       }
     }
     TL.needs = true;

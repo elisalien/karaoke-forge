@@ -117,21 +117,35 @@ function afterStructuralEdit() {
   renderSylList(); TL.invalidate(); requestRender();
 }
 
-/** Nudge every selected syllable. */
+/** Nudge every selected syllable — same collision rules as a mouse drag. */
 function nudgeSelection(dt) {
   const sel = selList().filter(o => o.s.t0 != null);
-  if (!sel.length) return;
-  Undo.snap('décaler');
+  if (!sel.length) { toast('Sélectionne une syllabe calée', true); return; }
+  const items = sel.map(o => ({ li: o.li, si: o.si, o0: o.s.t0, o1: o.s.t1 }));
+  const keys = new Set(items.map(o => sk(o.li, o.si)));
+  const [lo, hi] = TL.moveBounds(items, keys);
+  dt = clamp(dt, lo, hi);
+  if (Math.abs(dt) < 1e-6) { toast('Bloqué par la syllabe voisine'); return; }
+  Undo.snap('décaler', 'nudge');       // flèches tenues : une seule étape d'annulation
   sel.forEach(o => { o.s.t0 = Math.max(0, o.s.t0 + dt); if (o.s.t1 != null) o.s.t1 += dt; });
-  renderSylList(); TL.invalidate(); requestRender();
+  renderSylList(); TL.invalidateBlocks(); requestRender();
 }
-/** Anchor a selected syllable's start / end on the playhead. */
+/** Anchor a selected syllable's start / end on the playhead, without crossing its neighbours. */
 function setEdgeAtPlayhead(which) {
   const o = selList()[0]; if (!o) { toast('Sélectionne une syllabe', true); return; }
-  Undo.snap('caler sur la tête');
-  if (which === 'in') { o.s.t0 = S.cur; if (o.s.t1 != null && o.s.t1 <= o.s.t0) o.s.t1 = o.s.t0 + .1; }
-  else { if (o.s.t0 == null) o.s.t0 = Math.max(0, S.cur - .2); o.s.t1 = Math.max(o.s.t0 + .02, S.cur); }
-  renderSylList(); TL.invalidate(); requestRender();
+  const { prev, next } = TL.neighbours(o.li, o.si);
+  Undo.snap(which === 'in' ? 'début sur la tête' : 'fin sur la tête');
+  if (which === 'in') {
+    const end = o.s.t1 != null ? o.s.t1 : (next ? next.t0 : S.cur + .3);
+    const lo = prev ? (prev.t1 != null ? prev.t1 : prev.t0 + MIN_SYL) : 0;
+    o.s.t0 = clamp(S.cur, lo, Math.max(lo, end - MIN_SYL));
+    if (o.s.t1 != null && o.s.t1 <= o.s.t0) o.s.t1 = o.s.t0 + .1;
+  } else {
+    if (o.s.t0 == null) o.s.t0 = Math.max(0, S.cur - .2);
+    const hi = next ? next.t0 : Infinity;
+    o.s.t1 = clamp(S.cur, o.s.t0 + MIN_SYL, Math.max(o.s.t0 + MIN_SYL, hi));
+  }
+  renderSylList(); TL.invalidateBlocks(); requestRender();
 }
 
 /* ------------------------------------------------------- context menus --- */
@@ -281,6 +295,7 @@ function renderSylList() {
   refreshDuration();
   TL.updateStat();
   Steps.refresh();
+  updateUndoUi();
   if (typeof Live !== 'undefined' && S.ws === 'live') Live.renderLines();
   docChanged();
 }

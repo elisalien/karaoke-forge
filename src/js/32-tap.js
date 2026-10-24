@@ -36,9 +36,8 @@ function setTap(on, fromSel) {
   S.tapHeld = null;
   $('#bTap').classList.toggle('on', on);
   $('#tapHud').classList.toggle('on', on);
-  if (!on) { renderSylList(); return; }
+  if (!on) { renderSylList(); updateUndoUi(); return; }
 
-  Undo.snap('calage');
   const list = allSyls();
   let i;
   if (fromSel) i = Math.max(0, list.findIndex(o => o.li === S.sel.line && o.si === S.sel.syl));
@@ -61,6 +60,7 @@ function tap() {
   if (S.tapIdx >= list.length) { setTap(false); toast('Fin des paroles — bien joué'); return; }
   const t = tapTime();
   const e = list[S.tapIdx];
+  Undo.snap('calage', 'tap');          // une rafale de frappes = une seule étape d'annulation
   e.s.t0 = t; e.s.t1 = null;
   if (S.tapIdx > 0) {
     const pv = list[S.tapIdx - 1];
@@ -93,12 +93,14 @@ function tapRelease() {
   if (!s || s.t0 == null || s.t0 !== h.t0) return;
   const t = tapTime();
   if (t - s.t0 < TAP_HOLD_MIN) return;
+  Undo.snap('calage', 'tap');
   s.t1 = t;
   TL.invalidate(); requestRender(); docChanged();
 }
 
 function untap() {
-  if (S.tapIdx <= 0) return;
+  if (S.tapIdx <= 0) { toast('Début des paroles'); return; }
+  Undo.snap('annuler la frappe', 'untap');
   S.tapIdx--;
   S.tapHeld = null;
   const list = allSyls(), e = list[S.tapIdx];

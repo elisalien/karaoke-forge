@@ -72,6 +72,7 @@ function setWorkspace(ws) {
   try { localStorage.setItem('kf.ws', ws); } catch (e) { }
   if (ws === 'live') Live.enter();
   updateStageHint();
+  updateUndoUi();
   Scene.updateUi();
   requestAnimationFrame(() => { fitStage(); TL.resize(); TL.invalidate(); requestRender(); });
 }
@@ -105,7 +106,12 @@ function wire() {
   $('#bStop').onclick = () => stop();
   $('#bTap').onclick = () => setTap(!S.tapMode);
   $('#bExport').onclick = openExport;
-  $('#lyricsText').addEventListener('input', () => { Doc.lyricsDirty = true; Doc.touch(); });
+  /* la frappe dans les paroles est annulable comme le reste : l'instantané
+     se prend AVANT que la lettre entre (beforeinput), rafale par rafale */
+  $('#lyricsText').addEventListener('beforeinput', () => Undo.doc.snap('saisie des paroles', 'typing'));
+  $('#lyricsText').addEventListener('input', () => { Doc.lyricsDirty = true; Doc.touch(); updateUndoUi(); });
+  $('#bUndo').onclick = () => Undo.undo();
+  $('#bRedo').onclick = () => Undo.redo();
   $('#bBuild').onclick = () => rebuild(false);
   $('#bMerge').onclick = () => rebuild(true);
   $('#bSave').onclick = () => saveToLibrary();
@@ -182,19 +188,19 @@ function wire() {
   $('#bZoomIn').onclick = () => TL.setZoom(S.tlZoom * 1.4);
   $('#bZoomOut').onclick = () => TL.setZoom(S.tlZoom / 1.4);
   $('#bZoomFit').onclick = zoomFit;
-  const tgl = (id, key) => {
+  const tgl = (id, key, after) => {
     const b = $(id);
     b.classList.toggle('on', !!S[key]);
-    b.onclick = () => { S[key] = !S[key]; b.classList.toggle('on', S[key]); };
+    b.onclick = () => { S[key] = !S[key]; b.classList.toggle('on', S[key]); if (after) after(); };
   };
-  tgl('#ckFollow', 'follow'); tgl('#ckSnap', 'snap');
+  tgl('#ckFollow', 'follow', () => TL.resumeFollow()); tgl('#ckSnap', 'snap', () => TL.updateStat());
   tgl('#ckRipple', 'ripple'); tgl('#ckScrub', 'scrubAudio');
   bindTimeScrub();
 
   /* menus contextuels */
   addEventListener('pointerdown', e => { if (!e.target.closest || !e.target.closest('#ctx')) hideCtx(); }, true);
   addEventListener('wheel', hideCtx, { passive: true });
-  addEventListener('blur', hideCtx);
+  addEventListener('blur', () => { hideCtx(); TL.cancelDrag(); });
 
   /* glisser-déposer */
   addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
@@ -301,7 +307,21 @@ function onKey(e) {
   if (e.altKey && !mod && ws) { e.preventDefault(); setWorkspace(WORKSPACES[+ws[1] - 1]); return; }
   if (isTyping(e.target)) return;
   if (k === 'F1') { e.preventDefault(); openHelp(); return; }
-  if ($('#helpPanel').classList.contains('on')) { if (k === 'Escape') openHelp(false); return; }
+  if ($('#helpPanel').classList.contains('on')) {
+    if (k === 'Escape') { openHelp(false); return; }
+    if (!(mod && (low === 'z' || low === 'y'))) return;   // Ctrl+Z ferme l'aide et agit quand même
+    openHelp(false);
+  }
+
+  /* --- annuler / rétablir : la pile de l'espace actif (aucune en LIVE) --- */
+  if (mod && !e.altKey && (low === 'z' || low === 'y')) {
+    e.preventDefault();
+    if (e.repeat) return;                                  // une touche tenue n'avale pas tout l'historique
+    const redo = low === 'y' || e.shiftKey;
+    if (S.tapMode && !redo) { untap(); return; }            // en plein calage : on recule d'une syllabe
+    redo ? Undo.redo() : Undo.undo();
+    return;
+  }
 
   if (S.ws === 'live') { onKeyLive(e, k, low, mod); return; }
 
@@ -310,9 +330,15 @@ function onKey(e) {
 
   /* --- combinaisons --- */
   if (mod) {
-    if (low === 'a') { e.preventDefault(); selLine(S.sel.line); renderSylList(); TL.invalidate(); return; }
-    if (low === 'z') { e.preventDefault(); e.shiftKey ? Undo.redo() : Undo.undo(); return; }
-    if (low === 'y') { e.preventDefault(); Undo.redo(); return; }
+    if (low === 'a') {
+      e.preventDefault();
+      // Ctrl+A : la ligne ; une seconde fois : tout le morceau
+      const L = S.lines[S.sel.line];
+      const whole = L && L.syls.length && L.syls.every((_, si) => selHas(S.sel.line, si));
+      if (whole) { S.selSet.clear(); allSyls().forEach(o => S.selSet.add(sk(o.li, o.si))); }
+      else selLine(S.sel.line);
+      renderSylList(); TL.invalidate(); return;
+    }
     return;
   }
 
@@ -320,8 +346,9 @@ function onKey(e) {
     case ' ': e.preventDefault(); togglePlay(); return;
     case 'Escape':
       e.preventDefault(); hideCtx();
+      if (TL.drag) { TL.cancelDrag(); return; }           // le geste en cours est annulé, rien ne bouge
       if (S.tapMode) { setTap(false); return; }
-      selClear(); renderSylList(); TL.invalidate(); return;
+      selClear(); renderSylList(); TL.invalidateBlocks(); return;
     case 'Home': e.preventDefault(); seek(0); return;
     case 'End': e.preventDefault(); seek(S.duration); return;
     case 'Backspace':
@@ -368,7 +395,7 @@ function onKey(e) {
     case 'b': toggleLoop(); break;
     case 'v': setTool('V'); break;
     case 'c': setTool('C'); break;
-    case 's': S.snap = !S.snap; $('#ckSnap').classList.toggle('on', S.snap); toast('Aimantation ' + (S.snap ? 'activée' : 'désactivée')); break;
+    case 's': S.snap = !S.snap; $('#ckSnap').classList.toggle('on', S.snap); TL.updateStat(); toast('Aimantation ' + (S.snap ? 'activée' : 'désactivée')); break;
     case 'r': S.ripple = !S.ripple; $('#ckRipple').classList.toggle('on', S.ripple); toast('Décaler la suite : ' + (S.ripple ? 'activé' : 'désactivé')); break;
     case 'm': mergeSelection(); break;
     case 'i': setEdgeAtPlayhead('in'); break;

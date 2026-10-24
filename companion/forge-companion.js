@@ -35,7 +35,7 @@ const BIN_DIR = [process.env.YT_BIN_DIR, path.join(__dirname, 'bin'), 'D:\\CREA\
 const YTDLP = BIN_DIR ? path.join(BIN_DIR, exe('yt-dlp')) : findInPath(exe('yt-dlp'));
 const FFMPEG = BIN_DIR && fs.existsSync(path.join(BIN_DIR, exe('ffmpeg'))) ? path.join(BIN_DIR, exe('ffmpeg')) : findInPath(exe('ffmpeg'));
 const childEnv = { ...process.env, PATH: (BIN_DIR ? BIN_DIR + path.delimiter : '') + (process.env.PATH || '') };
-const CACHE = path.join(__dirname, '.cache');
+const CACHE = process.env.FORGE_CACHE_DIR || path.join(__dirname, '.cache');
 fs.mkdirSync(CACHE, { recursive: true });
 
 /* ---------------------------------------------------- Ableton Link (SSE) --- */
@@ -139,7 +139,7 @@ function ytDownload(id) {
 /* ------------------------------------------------------------------ HTTP --- */
 /* Seules l'app ouverte en fichier local (Origin: null) et les pages servies
    par cette machine ont le droit de parler au companion.                    */
-const allowed = o => !o || o === 'null' || /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o);
+const allowed = o => !o || o === 'null' || /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(o) || o === 'kf://app';
 
 function send(res, code, obj, origin) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', ...cors(origin) });
@@ -198,7 +198,7 @@ setInterval(() => { for (const res of listeners) res.write(': ping\n\n'); }, 150
 server.on('error', e => {
   if (e.code === 'EADDRINUSE') console.log(`[companion] le port ${PORT} est déjà pris — le companion tourne peut-être déjà.`);
   else console.log('[companion]', e.message);
-  process.exit(1);
+  if (!process.env.FORGE_EMBEDDED) process.exit(1);   // dans l'app de bureau, on reste discret
 });
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[companion] prêt sur http://127.0.0.1:${PORT}`);

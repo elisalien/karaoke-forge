@@ -9,12 +9,18 @@
 
 /* ----------------------------------------------------------------- audio --- */
 async function loadAudio(file) {
-  if (!S.ctx) S.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!S.ctx) {
+    try { S.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { throw new Error('Web Audio indisponible dans ce navigateur'); }
+  }
   const gen = ++S.audioGen;          // un chargement lancé après celui-ci l'annule
-  const buf = await file.arrayBuffer();
+  const busy = setBusy(`Décodage de ${file.name || 'l\'audio'}…`);
   let ab;
-  try { ab = await S.ctx.decodeAudioData(buf); }
-  catch (e) { if (gen !== S.audioGen) return false; throw new Error('format audio non reconnu'); }
+  try {
+    const buf = await file.arrayBuffer();
+    try { ab = await S.ctx.decodeAudioData(buf); }
+    catch (e) { if (gen !== S.audioGen) return false; throw new Error('format audio non reconnu'); }
+  } finally { busy(); }
   if (gen !== S.audioGen) return false;
   stop();
   S.buffer = ab; S.audioBlob = file; S.audioName = file.name || 'audio'; S.audioRemoved = false;
@@ -26,7 +32,20 @@ async function loadAudio(file) {
   updateTime(); TL.invalidate();
   Steps.refresh();
   toast(`Audio chargé — ${S.audioName} (${fmtTime(ab.duration, false)})`);
+  // les attaques se calculent en tâche de fond : la timeline les affiche dès qu'elles sont prêtes
+  Onsets.computeAsync(() => { if (gen === S.audioGen) TL.invalidate(); });
   return true;
+}
+
+/** Indicateur d'activité discret dans l'en-tête ; renvoie la fonction qui le retire. */
+function setBusy(msg) {
+  const el = $('#saveState'); if (!el) return () => { };
+  el.dataset.busy = (+(el.dataset.busy || 0) + 1);
+  el.classList.add('busy'); el.textContent = msg;
+  return () => {
+    el.dataset.busy = Math.max(0, +(el.dataset.busy || 1) - 1);
+    if (!+el.dataset.busy) { el.classList.remove('busy'); updateSaveState(); }
+  };
 }
 
 /** Oublie l'audio (le projet reste). */
@@ -96,6 +115,7 @@ function play(from) {
     };
   }
   S.startOff = off; S.freeT = performance.now();
+  if (from === undefined) TL.resumeFollow();    // reprise de lecture : la vue suit de nouveau
   setPlaying(true);
   if (S.holdAt != null) setHold(S.holdAt);
   requestRender();
@@ -145,6 +165,7 @@ function now() {
 }
 function seek(t) {
   S.cur = clamp(t, 0, S.duration || 0);
+  TL.resumeFollow();
   if (S.holdAt != null && S.cur >= S.holdAt - .01) S.holdAt = null;   // aller au-delà de l'arrêt l'annule
   Particles.reset();
   if (S.playing) play(S.cur);

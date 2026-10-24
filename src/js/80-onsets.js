@@ -43,36 +43,71 @@ FFT.prototype.run = function (re, im) {
 
 /* --------------------------------------------------------------- attaques --- */
 const Onsets = {
-  cache: null,
+  cache: null, job: null,
 
+  /** Analyse complète, bloquante (quelques centaines de ms sur un morceau). */
   compute(force) {
     if (!S.buffer) return null;
-    const key = S.audioName + '|' + S.buffer.duration;
+    const key = this.keyOf();
     if (!force && this.cache && this.cache.key === key) return this.cache;
+    const st = this.begin();
+    while (this.step(st, Infinity)) { /* tout d'une traite */ }
+    return this.finish(st);
+  },
 
+  /** La même analyse, par tranches, sans figer l'interface. `done(cache)`
+      est appelé à la fin ; un autre audio chargé entre-temps annule tout. */
+  computeAsync(done) {
+    if (!S.buffer) return;
+    const key = this.keyOf();
+    if (this.cache && this.cache.key === key) { if (done) done(this.cache); return; }
+    if (this.job && this.job.key === key) { if (done) this.job.cbs.push(done); return; }
+    const st = this.begin();
+    this.job = { key, cbs: done ? [done] : [] };
+    const job = this.job;
+    const tick = () => {
+      if (this.job !== job || !S.buffer || this.keyOf() !== key) { if (this.job === job) this.job = null; return; }
+      const t0 = performance.now();
+      let more = true;
+      while (more && performance.now() - t0 < 12) more = this.step(st, 64);
+      if (more) { setTimeout(tick, 0); return; }
+      const c = this.finish(st);
+      this.job = null;
+      for (const cb of job.cbs) { try { cb(c); } catch (e) { console.warn('[attaques]', e); } }
+    };
+    setTimeout(tick, 60);
+  },
+
+  keyOf() { return S.audioName + '|' + S.buffer.duration; },
+
+  /* ---- analyse par flux spectral, découpée en begin / step / finish ---- */
+  begin() {
     const N = 1024, HOP = 512;          // 11,6 ms de résolution
-    const sr = S.buffer.sampleRate;
-    const len = S.buffer.length;
+    const sr = S.buffer.sampleRate, len = S.buffer.length;
     const a = S.buffer.getChannelData(0);
     const b = S.buffer.numberOfChannels > 1 ? S.buffer.getChannelData(1) : null;
-
     const win = new Float32Array(N);
     for (let i = 0; i < N; i++) win[i] = .5 - .5 * Math.cos(2 * Math.PI * i / (N - 1));
-
-    const fft = new FFT(N);
-    const re = new Float32Array(N), im = new Float32Array(N);
     const bins = N / 2;
-    let prev = new Float32Array(bins), cur = new Float32Array(bins);
-    const frames = Math.max(1, Math.floor((len - N) / HOP));
-    const flux = new Float32Array(frames);
-
     const wk = new Float32Array(bins);
     for (let k = 0; k < bins; k++) {
       const f = k * sr / N;
       wk[k] = f < 120 ? .15 : (f < 400 ? .6 : (f < 6000 ? 1 : .5));
     }
+    const frames = Math.max(1, Math.floor((len - N) / HOP));
+    return {
+      key: this.keyOf(), N, HOP, sr, a, b, win, wk, bins, frames, t: 0,
+      fft: new FFT(N), re: new Float32Array(N), im: new Float32Array(N),
+      prev: new Float32Array(bins), cur: new Float32Array(bins), flux: new Float32Array(frames)
+    };
+  },
 
-    for (let t = 0; t < frames; t++) {
+  /** Traite au plus `n` trames ; renvoie faux quand tout est fait. */
+  step(st, n) {
+    const { N, HOP, a, b, win, wk, bins, frames, fft, re, im, flux } = st;
+    let { prev, cur } = st;
+    const end = Math.min(frames, st.t + n);
+    for (let t = st.t; t < end; t++) {
       const off = t * HOP;
       for (let i = 0; i < N; i++) {
         const s = b ? (a[off + i] + b[off + i]) * .5 : a[off + i];
@@ -89,7 +124,12 @@ const Onsets = {
       flux[t] = f;
       const sw = prev; prev = cur; cur = sw;
     }
+    st.prev = prev; st.cur = cur; st.t = end;
+    return end < frames;
+  },
 
+  finish(st) {
+    const { frames, flux, sr, HOP } = st;
     const sm = new Float32Array(frames);
     for (let i = 0; i < frames; i++)
       sm[i] = (flux[Math.max(0, i - 1)] + 2 * flux[i] + flux[Math.min(frames - 1, i + 1)]) / 4;
@@ -115,7 +155,7 @@ const Onsets = {
       times.push(i / fps); strength.push(sm[i]); last = i;
     }
     this.cache = {
-      key,
+      key: st.key,
       times: Float32Array.from(times),
       str: Float32Array.from(strength.map(v => gmax > 0 ? v / gmax : 0))
     };
@@ -245,10 +285,12 @@ function snapLineToOnsets(li) {
 
 async function runOnsetAlign(scopeLines) {
   if (!S.buffer) { toast('Charge un audio d\'abord', true); return; }
+  if (!Onsets.ready()) {
+    const busy = setBusy('Analyse des attaques…');
+    await new Promise(r => Onsets.computeAsync(r));
+    busy();
+  }
   Undo.snap('caler sur les attaques');
-  toast('Analyse des attaques…');
-  await new Promise(r => setTimeout(r, 30));
-  Onsets.compute();
   let n = 0;
   for (const li of scopeLines) if (snapLineToOnsets(li)) n++;
   renderSylList(); TL.invalidate(); requestRender();

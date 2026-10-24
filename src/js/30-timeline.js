@@ -3,7 +3,13 @@
    avec capture : un glissé commencé sur la timeline lui appartient jusqu'au
    relâchement, même si la souris sort de la fenêtre. Un seuil de quelques
    pixels sépare le clic du glissé : cliquer ne déplace jamais rien, et un
-   bloc ne peut pas traverser une voisine qui ne bouge pas avec lui.        */
+   bloc ne peut pas traverser une voisine qui ne bouge pas avec lui.
+
+   Deux calques en cache :
+     · la VUE (règle, onde, attaques, zone de boucle) — ne change qu'au zoom,
+       au défilement ou au chargement d'un audio ;
+     · les BLOCS (lignes, syllabes) — changent à chaque édition ou sélection.
+   Un glissé ne redessine que les blocs : l'onde, coûteuse, reste en cache.  */
 const DRAG_PX = 4;        // distance (px CSS) avant qu'un clic devienne un glissé
 const MIN_SYL = .02;      // écart minimal entre deux débuts de syllabe (s)
 
@@ -11,24 +17,30 @@ const MIN_SYL = .02;      // écart minimal entre deux débuts de syllabe (s)
 function capturePointer(el, e) { try { el.setPointerCapture(e.pointerId); } catch (er) { } }
 
 const TL = {
-  c: null, g: null, stat: null, sg: null,
-  dirty: true, needs: true, drag: null, dpr: 1, snapGuide: null, hoverT: null,
+  c: null, g: null,
+  view: null, vg: null,          // calque vue (règle + onde)
+  blk: null, bg: null,           // calque blocs (lignes + syllabes)
+  dirty: true, dirtyBlocks: true, needs: true, drag: null, dpr: 1,
+  snapGuide: null, hoverT: null, hoverX: null, hoverHit: null,
   onHead: false, scrubWasPlaying: false, lastGrain: 0,
+  followPaused: false, lastDownAt: 0, lastDownX: 0, curBeforeDown: 0,
   RULER: 18, WAVE: 44, LANE: 22, SYL: 36,
 
   init() {
     this.c = $('#tlCanvas');
     this.g = this.c.getContext('2d');
-    this.stat = document.createElement('canvas');
-    this.sg = this.stat.getContext('2d');
+    this.view = document.createElement('canvas'); this.vg = this.view.getContext('2d');
+    this.blk = document.createElement('canvas'); this.bg = this.blk.getContext('2d');
     this.resize();
     this.bind();
     new ResizeObserver(() => this.resize()).observe($('#tlScroll'));
   },
 
-  /** Full repaint including the cached background layer. */
-  invalidate() { this.dirty = true; this.needs = true; },
-  /** Overlay-only repaint (playhead, lasso, guides) — cheap. */
+  /** Tout redessiner : vue et blocs. */
+  invalidate() { this.dirty = true; this.dirtyBlocks = true; this.needs = true; },
+  /** Seuls les blocs ont changé (édition, sélection) : l'onde reste en cache. */
+  invalidateBlocks() { this.dirtyBlocks = true; this.needs = true; },
+  /** Calques intacts : seules les surcouches (tête, lasso, guides) bougent. */
   repaint() { this.needs = true; },
 
   resize() {
@@ -39,7 +51,8 @@ const TL = {
     const h = Math.max(120, Math.floor(r.height * dpr));
     if (w === this.c.width && h === this.c.height && dpr === this.dpr) return;
     this.c.width = w; this.c.height = h;
-    this.stat.width = w; this.stat.height = h;
+    this.view.width = w; this.view.height = h;
+    this.blk.width = w; this.blk.height = h;
     this.dpr = dpr;
     this.invalidate();
   },
@@ -60,27 +73,48 @@ const TL = {
     S.tlScroll = clamp(S.tlScroll, 0, Math.max(0, (S.duration || 60) - vis * .5));
   },
 
+  /** Zoom autour d'un point (px canevas) ; sans point : autour de la tête de
+      lecture si elle est visible, sinon du centre. */
   setZoom(z, anchorX) {
-    const ax = anchorX === undefined ? this.c.width / 2 : anchorX;
+    let ax = anchorX;
+    if (ax === undefined) {
+      const px = this.t2x(S.cur);
+      ax = px >= 0 && px <= this.c.width ? px : this.c.width / 2;
+    }
     const tAt = this.x2t(ax);
     S.tlZoom = clamp(z, 2, 4000);
     S.tlScroll = tAt - ax / (S.tlZoom * this.dpr);
     this.clampScroll();
     this.invalidate();
+    this.updateStat();
   },
 
-  /* ------------------------------------------------------- cached layer --- */
-  buildStatic() {
-    const g = this.sg, W = this.stat.width, H = this.stat.height, d = this.dpr;
+  /** Défilement manuel : pendant la lecture, le suivi se met en pause
+      jusqu'au prochain déplacement de la tête (lecture, clic, recherche). */
+  userScrolled() {
+    if (S.playing && S.follow && !this.followPaused) { this.followPaused = true; this.updateFollowUi(); }
+  },
+  resumeFollow() {
+    if (this.followPaused) { this.followPaused = false; this.updateFollowUi(); }
+  },
+  updateFollowUi() {
+    const b = $('#ckFollow'); if (!b) return;
+    b.classList.toggle('paused', this.followPaused);
+    b.title = this.followPaused ? 'Suivi en pause le temps que tu regardes ailleurs — reprend à la prochaine lecture' : 'La vue suit la lecture';
+  },
+
+  /* ------------------------------------------------------ calque : vue --- */
+  buildView() {
+    const g = this.vg, W = this.view.width, H = this.view.height, d = this.dpr;
     const G = this.geo();
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = '#0a0d19'; g.fillRect(0, 0, W, H);
+    g.fillStyle = TLC.bg; g.fillRect(0, 0, W, H);
     this.clampScroll();
     const t0 = S.tlScroll, t1 = this.x2t(W);
-    const FONT = n => `${n * d}px ui-monospace,Consolas,monospace`;
+    const FONT = n => `${n * d}px ${TLC.font}`;
 
-    /* ---- ruler ---- */
-    g.fillStyle = '#0d1224'; g.fillRect(0, 0, W, G.ruler);
+    /* ---- règle ---- */
+    g.fillStyle = TLC.ruler; g.fillRect(0, 0, W, G.ruler);
     const steps = [.02, .05, .1, .25, .5, 1, 2, 5, 10, 15, 30, 60, 120];
     const stp = steps.find(s => s * S.tlZoom > 64) || 120;
     g.font = FONT(10); g.textBaseline = 'middle';
@@ -91,16 +125,16 @@ const TL = {
       const t = Math.round(i * sub * 1000) / 1000;
       const x = Math.round(this.t2x(t)) + .5;
       const major = i % 5 === 0;
-      g.strokeStyle = major ? '#2b3564' : '#171d38';
+      g.strokeStyle = major ? TLC.gridMajor : TLC.gridMinor;
       g.beginPath(); g.moveTo(x, major ? 0 : G.ruler * .55); g.lineTo(x, major ? H : G.ruler); g.stroke();
-      if (major) { g.fillStyle = '#8391c0'; g.fillText(fmtTime(t, stp < 1), x + 3 * d, G.ruler / 2); }
+      if (major) { g.fillStyle = TLC.rulerTxt; g.fillText(fmtTime(t, stp < 1), x + 3 * d, G.ruler / 2); }
     }
 
-    /* ---- waveform ---- */
-    g.fillStyle = '#070a14'; g.fillRect(0, G.waveY, W, G.wave);
+    /* ---- onde ---- */
+    g.fillStyle = TLC.waveBg; g.fillRect(0, G.waveY, W, G.wave);
     if (S.peaks) {
       const { mn, mx, rate } = S.peaks, mid = G.waveY + G.wave / 2, amp = G.wave / 2 - 2 * d;
-      g.strokeStyle = '#1d6f8e'; g.lineWidth = 1;
+      g.strokeStyle = TLC.wave; g.lineWidth = 1;
       g.beginPath();
       for (let x = 0; x < W; x++) {
         const ia = Math.max(0, Math.floor(this.x2t(x) * rate));
@@ -112,46 +146,70 @@ const TL = {
         g.moveTo(x + .5, mid - b * amp); g.lineTo(x + .5, mid - a * amp);
       }
       g.stroke();
-      g.strokeStyle = '#0f3a4c'; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+      g.strokeStyle = TLC.waveMid; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+
+      /* ---- attaques détectées : petits traits sous la règle ---- */
+      if (typeof Onsets !== 'undefined' && Onsets.ready()) {
+        const o = Onsets.cache;
+        g.lineWidth = 1;
+        for (let i = 0; i < o.times.length; i++) {
+          const t = o.times[i]; if (t < t0) continue; if (t > t1) break;
+          const x = Math.round(this.t2x(t)) + .5;
+          const h = (3 + 6 * o.str[i]) * d;
+          g.strokeStyle = o.str[i] > .5 ? TLC.onsetStrong : TLC.onset;
+          g.beginPath(); g.moveTo(x, G.waveY); g.lineTo(x, G.waveY + h); g.stroke();
+        }
+      }
     } else {
-      g.fillStyle = '#3a4570'; g.font = FONT(11);
+      g.fillStyle = TLC.faint; g.font = FONT(11);
       g.fillText(S.lines.length ? '— sans audio : horloge libre —' : '— aucun audio chargé —', 10 * d, G.waveY + G.wave / 2);
     }
 
     /* ---- zone de boucle ---- */
     if (S.loop) {
       const lx = this.t2x(S.loop[0]), lw = this.t2x(S.loop[1]) - lx;
-      g.fillStyle = 'rgba(166,255,47,.07)';
+      g.fillStyle = TLC.loopFill;
       g.fillRect(lx, 0, lw, H);
-      g.strokeStyle = 'rgba(166,255,47,.5)'; g.lineWidth = 1;
+      g.strokeStyle = TLC.loopLine; g.lineWidth = 1;
       g.beginPath();
       g.moveTo(lx + .5, 0); g.lineTo(lx + .5, H);
       g.moveTo(lx + lw - .5, 0); g.lineTo(lx + lw - .5, H);
       g.stroke();
     }
 
-    /* ---- lanes background ---- */
-    g.fillStyle = '#0b0f1e'; g.fillRect(0, G.laneY, W, H - G.laneY);
-    g.strokeStyle = '#151b33'; g.beginPath();
+    /* ---- fond des pistes ---- */
+    g.fillStyle = TLC.laneBg; g.fillRect(0, G.laneY, W, H - G.laneY);
+    g.strokeStyle = TLC.laneLine; g.beginPath();
     g.moveTo(0, G.sylY + .5); g.lineTo(W, G.sylY + .5); g.stroke();
-    g.font = FONT(10.5);
+    this.dirty = false;
+  },
 
-    /* ---- line blocks ---- */
+  /* ---------------------------------------------------- calque : blocs --- */
+  buildBlocks() {
+    const g = this.bg, W = this.blk.width, H = this.blk.height, d = this.dpr;
+    const G = this.geo();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const t0 = S.tlScroll, t1 = this.x2t(W);
+    g.font = `${10.5 * d}px ${TLC.font}`; g.textBaseline = 'middle';
+
+    /* ---- lignes ---- */
     S.lines.forEach((L, li) => {
       const sp = lineSpan(L); if (!sp || sp[1] < t0 || sp[0] > t1) return;
       const x = this.t2x(sp[0]), w = Math.max(2 * d, this.t2x(sp[1]) - x);
       const act = li === S.sel.line;
-      g.fillStyle = act ? '#330d49' : '#151c38';
-      g.fillRect(x, G.laneY + 2, w, G.lane - 4);
-      g.strokeStyle = act ? '#ff2fd0' : '#2b3564';
-      g.lineWidth = 1; g.strokeRect(x + .5, G.laneY + 2.5, w - 1, G.lane - 5);
+      g.fillStyle = act ? TLC.lineAct : TLC.line;
+      g.fillRect(x, G.laneY + 2 * d, w, G.lane - 4 * d);
+      g.strokeStyle = act ? TLC.acc : TLC.lineEdge;
+      g.lineWidth = 1; g.strokeRect(x + .5, G.laneY + 2 * d + .5, w - 1, G.lane - 4 * d - 1);
       g.save(); g.beginPath(); g.rect(x, G.laneY, w, G.lane); g.clip();
-      g.fillStyle = act ? '#ffd6f6' : '#8f9dd0';
+      g.fillStyle = act ? TLC.txt : TLC.dim;
       g.fillText(`${li + 1}· ${L.raw || L.syls.map(s => s.t).join('')}`.slice(0, 110), x + 5 * d, G.laneY + G.lane / 2);
       g.restore();
     });
 
-    /* ---- syllable blocks ---- */
+    /* ---- syllabes ---- */
+    const hh = this.hoverHit;
     S.lines.forEach((L, li) => {
       L.syls.forEach((s, si) => {
         if (s.t0 == null) return;
@@ -159,94 +217,105 @@ const TL = {
         const x = this.t2x(s.t0), w = Math.max(3 * d, this.t2x(e) - x);
         const sel = selHas(li, si);
         const prim = S.sel.line === li && S.sel.syl === si;
-        g.fillStyle = sel ? '#5b1580' : (li % 2 ? '#122c44' : '#141f42');
-        g.fillRect(x, G.sylY + 3, w - 1, G.syl - 7);
+        const hov = hh && hh.li === li && hh.si === si && !this.drag;
+        g.fillStyle = sel ? TLC.sylSel : (hov ? TLC.sylHover : (li % 2 ? TLC.sylB : TLC.sylA));
+        g.fillRect(x, G.sylY + 3 * d, w - 1, G.syl - 7 * d);
         if (sel) {
-          g.strokeStyle = prim ? '#ffffff' : '#ff2fd0'; g.lineWidth = prim ? 1.6 * d : 1 * d;
-          g.strokeRect(x + .5, G.sylY + 3.5, w - 2, G.syl - 8);
+          g.strokeStyle = prim ? TLC.white : TLC.acc; g.lineWidth = (prim ? 1.6 : 1) * d;
+          g.strokeRect(x + .5, G.sylY + 3 * d + .5, w - 2, G.syl - 7 * d - 1);
+        } else if (hov) {
+          g.strokeStyle = TLC.accDim; g.lineWidth = 1;
+          g.strokeRect(x + .5, G.sylY + 3 * d + .5, w - 2, G.syl - 7 * d - 1);
         }
-        g.fillStyle = sel ? '#ff2fd0' : '#31f6ff';
-        g.fillRect(x, G.sylY + 3, 2 * d, G.syl - 7);
+        g.fillStyle = sel ? TLC.white : TLC.acc;
+        g.fillRect(x, G.sylY + 3 * d, 2 * d, G.syl - 7 * d);
         if (w > 15 * d) {
           g.save(); g.beginPath(); g.rect(x, G.sylY, w - 2, G.syl); g.clip();
-          g.fillStyle = sel ? '#fff' : '#a9b8ec';
+          g.fillStyle = sel ? TLC.white : TLC.txt;
           g.fillText(s.t.trim(), x + 5 * d, G.sylY + G.syl / 2);
           g.restore();
         }
       });
     });
-
-    this.dirty = false;
-    this.updateStat();
+    this.dirtyBlocks = false;
   },
 
   updateStat() {
-    const all = allSyls();
-    const done = all.filter(o => o.s.t0 != null).length;
-    $('#tlStat').textContent = `${done}/${all.length} syllabes calées`;
+    const st = $('#tlStat'); if (st) st.textContent = `${Math.round(S.tlZoom)} px/s` + (S.snap ? ' · aimant' : '');
     const n = selCount();
-    $('#tlSel').textContent = n === 0 ? '—' : (n === 1 ? '1 syllabe' : `${n} syllabes`);
+    const se = $('#tlSel'); if (se) se.textContent = n === 0 ? '—' : (n === 1 ? '1 syllabe' : `${n} syllabes`);
   },
 
   /* ---------------------------------------------------------- overlays --- */
   draw() {
     if (!this.c.width) return;
-    if (this.dirty) this.buildStatic();
+    if (this.dirty) this.buildView();
+    if (this.dirtyBlocks) this.buildBlocks();
     const g = this.g, W = this.c.width, H = this.c.height, d = this.dpr;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
-    g.drawImage(this.stat, 0, 0);
+    g.drawImage(this.view, 0, 0);
+    g.drawImage(this.blk, 0, 0);
     const G = this.geo();
 
-    /* lasso */
+    /* lasso — borné dans le temps, pas en pixels : le défilement auto ne le déforme pas */
     if (this.drag && this.drag.mode === 'lasso') {
-      const { x0, y0, x1, y1 } = this.drag;
-      const rx = Math.min(x0, x1), ry = Math.min(y0, y1);
-      g.fillStyle = 'rgba(49,246,255,.12)'; g.fillRect(rx, ry, Math.abs(x1 - x0), Math.abs(y1 - y0));
-      g.strokeStyle = '#31f6ff'; g.lineWidth = 1;
-      g.strokeRect(rx + .5, ry + .5, Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const dr = this.drag;
+      const x0 = this.t2x(dr.ta), x1 = this.t2x(dr.tb);
+      const rx = Math.min(x0, x1), ry = Math.min(dr.y0, dr.y1);
+      g.fillStyle = TLC.lassoFill; g.fillRect(rx, ry, Math.abs(x1 - x0), Math.abs(dr.y1 - dr.y0));
+      g.strokeStyle = TLC.acc; g.lineWidth = 1;
+      g.strokeRect(rx + .5, ry + .5, Math.abs(x1 - x0), Math.abs(dr.y1 - dr.y0));
     }
 
-    /* snap guide */
+    /* guide d'aimantation */
     if (this.snapGuide != null) {
       const x = Math.round(this.t2x(this.snapGuide)) + .5;
-      g.strokeStyle = '#ffb02f'; g.lineWidth = 1;
+      g.strokeStyle = TLC.snap; g.lineWidth = 1;
       g.setLineDash([4 * d, 3 * d]);
       g.beginPath(); g.moveTo(x, G.laneY); g.lineTo(x, H); g.stroke();
       g.setLineDash([]);
     }
 
-    /* razor cursor */
+    /* lame */
     if (S.tool === 'C' && this.hoverT != null && !this.drag) {
       const x = Math.round(this.t2x(this.hoverT)) + .5;
-      g.strokeStyle = '#a6ff2f'; g.lineWidth = 1;
+      g.strokeStyle = TLC.razor; g.lineWidth = 1;
       g.beginPath(); g.moveTo(x, G.sylY); g.lineTo(x, H); g.stroke();
     }
 
-    /* playhead + grab handle */
+    /* temps sous le curseur, dans la règle */
+    if (this.hoverX != null && !this.drag && !this.onHead) {
+      const x = Math.round(this.hoverX) + .5;
+      g.strokeStyle = TLC.cursor; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, G.laneY); g.stroke();
+      this.label(g, fmtTime(this.x2t(this.hoverX)), x + 6 * d, 1, TLC.cursor, TLC.cursorTxt);
+    }
+
+    /* tête de lecture + poignée */
     const px = Math.round(this.t2x(S.cur)) + .5;
     if (px >= -12 && px <= W + 12) {
       const hot = this.onHead || (this.drag && this.drag.mode === 'scrub');
-      g.strokeStyle = hot ? '#ffffff' : '#a6ff2f';
+      g.strokeStyle = hot ? TLC.white : TLC.head;
       g.lineWidth = (hot ? 2 : 1.4) * d;
       g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H); g.stroke();
       const s = (hot ? 7 : 5) * d;
-      g.fillStyle = hot ? '#ffffff' : '#a6ff2f';
+      g.fillStyle = hot ? TLC.white : TLC.head;
       g.beginPath();
       g.moveTo(px - s, 0); g.lineTo(px + s, 0); g.lineTo(px, s * 1.5); g.fill();
-      if (hot) {                       // time read-out attached to the head
-        const lbl = fmtTime(S.cur);
-        g.font = `${10 * d}px ui-monospace,Consolas,monospace`;
-        const tw = g.measureText(lbl).width + 8 * d;
-        const bx = clamp(px + 7 * d, 0, Math.max(0, W - tw));
-        g.fillStyle = 'rgba(11,14,28,.94)';
-        g.fillRect(bx, 1, tw, 14 * d);
-        g.strokeStyle = '#a6ff2f'; g.lineWidth = 1;
-        g.strokeRect(bx + .5, 1.5, tw - 1, 14 * d - 1);
-        g.fillStyle = '#a6ff2f'; g.textBaseline = 'middle';
-        g.fillText(lbl, bx + 4 * d, 1 + 7 * d);
-      }
+      if (hot) this.label(g, fmtTime(S.cur), px + 7 * d, 1, TLC.head, TLC.head);
     }
+  },
+
+  /** Petite étiquette monospace sur fond sombre. */
+  label(g, txt, x, y, border, color) {
+    const d = this.dpr, W = this.c.width;
+    g.font = `${10 * d}px ${TLC.font}`; g.textBaseline = 'middle';
+    const tw = g.measureText(txt).width + 8 * d;
+    const bx = clamp(x, 0, Math.max(0, W - tw));
+    g.fillStyle = TLC.labelBg; g.fillRect(bx, y, tw, 14 * d);
+    g.strokeStyle = border; g.lineWidth = 1; g.strokeRect(bx + .5, y + .5, tw - 1, 14 * d - 1);
+    g.fillStyle = color; g.fillText(txt, bx + 4 * d, y + 7 * d);
   },
 
   /* ------------------------------------------------------ hit testing --- */
@@ -260,9 +329,9 @@ const TL = {
   },
 
   /** Le bloc sous le pointeur. Quand deux blocs se touchent, celui qui
-      CONTIENT le pointeur gagne ; les poignées de bord ne prennent que
-      les quelques pixels proches du bord, et seulement sur un bloc assez
-      large pour garder un corps saisissable.                              */
+      CONTIENT le pointeur gagne. Les poignées de bord prennent 6 px sur un
+      bloc large ; sur un bloc étroit elles se réduisent à 30 % de chaque
+      côté, pour rester saisissables sans zoomer.                            */
   hitSyl(mx, my) {
     const G = this.geo();
     if (my < G.sylY || my > G.sylY + G.syl) return null;
@@ -280,9 +349,10 @@ const TL = {
         const score = (mx >= x && mx <= x + w) ? 0 : Math.min(dl, dr);
         if (score > bestScore || (score === bestScore && best && dl >= best.dl)) continue;
         let edge = 'M';
-        if (w >= grab * 2 + 4 * d) {
-          if (dl <= grab && dl <= dr) edge = 'L';
-          else if (dr <= grab) edge = 'R';
+        const gz = w >= grab * 2 + 4 * d ? grab : Math.max(2 * d, w * .3);
+        if (w >= 6 * d) {
+          if (dl <= gz && dl <= dr) edge = 'L';
+          else if (dr <= gz) edge = 'R';
         }
         best = { li, si, edge, x, w, t0: s.t0, t1: e, dl };
         bestScore = score;
@@ -311,7 +381,8 @@ const TL = {
   startScrub() {
     this.scrubWasPlaying = S.playing;
     if (S.playing) { S.cur = now(); stopSrc(); S.holdAt = null; setPlaying(false); }
-    document.body.style.cursor = 'ew-resize';
+    this.c.style.cursor = 'ew-resize';
+    this.resumeFollow();
   },
 
   scrubTo(t, noSnap) {
@@ -324,14 +395,14 @@ const TL = {
     const vis = this.visSpan();
     if (S.cur < S.tlScroll + vis * .04 || S.cur > S.tlScroll + vis * .96) {
       S.tlScroll = Math.max(0, S.cur - vis * .5);
-      this.dirty = true;
+      this.dirty = true; this.dirtyBlocks = true;
     }
     this.repaint();
     requestRender();
   },
 
   endScrub() {
-    document.body.style.cursor = '';
+    this.c.style.cursor = '';
     this.snapGuide = null;
     if (this.scrubWasPlaying) play(S.cur);
     else Scene.sendClock(true);
@@ -361,7 +432,9 @@ const TL = {
   },
 
   /* ----------------------------------------------------------- snapping --- */
-  /** Snap `t`, ignoring the syllables being dragged. Records the guide. */
+  /** Aimante `t` : tête de lecture, bords des syllabes voisines, puis les
+      attaques détectées dans l'audio, puis la grille de 10 ms. Les syllabes
+      en train de bouger (`ignore`) ne sont jamais des cibles.               */
   snapTime(t, ignore, noSnap) {
     this.snapGuide = null;
     if (!S.snap || noSnap) return t;
@@ -375,15 +448,21 @@ const TL = {
       const L = S.lines[li];
       for (let si = 0; si < L.syls.length; si++) {
         if (skip.has(sk(li, si))) continue;
-        const s = L.syls[si]; if (s.t0 == null || s.t0 < t0 || s.t0 > t1) continue;
-        test(s.t0); test(sylEnd(L, si));
+        const s = L.syls[si]; if (s.t0 == null) continue;
+        const e = sylEnd(L, si);
+        if ((s.t0 < t0 || s.t0 > t1) && (e == null || e < t0 || e > t1)) continue;
+        test(s.t0); test(e);
       }
     }
+    if (best == null && typeof Onsets !== 'undefined' && Onsets.ready()) test(Onsets.nearest(t, tol));
     if (best != null) { this.snapGuide = best; return best; }
     return Math.round(t * 100) / 100;           // 10 ms grid fallback
   },
 
   /* ------------------------------------------------------------- bornes --- */
+  /** Fin « dure » d'une voisine : sa fin explicite, sinon juste après son début. */
+  hardEnd(s) { return s.t1 != null ? s.t1 : s.t0 + MIN_SYL; },
+
   /** Intervalle de décalage permis pour un groupe : jamais avant 0, jamais à
       travers une voisine de la même ligne qui ne fait pas partie du groupe. */
   moveBounds(items, keys) {
@@ -393,7 +472,7 @@ const TL = {
       lo = Math.max(lo, -it.o0);
       for (let j = it.si - 1; j >= 0; j--) {
         const n = L.syls[j]; if (n.t0 == null) continue;
-        if (!keys.has(sk(it.li, j))) lo = Math.max(lo, n.t0 + MIN_SYL - it.o0);
+        if (!keys.has(sk(it.li, j))) lo = Math.max(lo, this.hardEnd(n) - it.o0);
         break;
       }
       for (let j = it.si + 1; j < L.syls.length; j++) {
@@ -424,11 +503,11 @@ const TL = {
       const h = this.hitSyl(mx, my);
       if (h) {
         if (!selHas(h.li, h.si)) selOne(h.li, h.si);
-        this.invalidate(); renderSylList();
+        this.invalidateBlocks(); renderSylList();
         ctxMenuSyl(e.clientX, e.clientY, h);
       } else {
         const li = this.hitLine(mx, my);
-        if (li != null) { selLine(li); this.invalidate(); renderSylList(); ctxMenuLine(e.clientX, e.clientY, li); }
+        if (li != null) { selLine(li); this.invalidateBlocks(); renderSylList(); ctxMenuLine(e.clientX, e.clientY, li); }
         else ctxMenuEmpty(e.clientX, e.clientY, this.x2t(mx));
       }
     });
@@ -442,14 +521,15 @@ const TL = {
     c.addEventListener('lostpointercapture', e => { if (this.drag) this.onUp(e); });
     c.addEventListener('pointerleave', () => {
       if (this.drag) return;
-      $('#tlTip').style.display = 'none'; this.hoverT = null;
+      this.hideTip(); this.hoverT = null; this.hoverX = null;
+      if (this.hoverHit) { this.hoverHit = null; this.invalidateBlocks(); }
       if (this.onHead) this.onHead = false;
       this.repaint();
     });
     c.addEventListener('dblclick', e => {
       const [mx, my] = this.local(e);
       const z = this.zone(my);
-      if (z === 'ruler' || z === 'wave') { zoomFit(); return; }
+      if (z === 'ruler' || z === 'wave') { seek(this.curBeforeDown); zoomFit(); return; }   // la tête ne bouge pas
       const h = this.hitSyl(mx, my);
       const li = h ? h.li : this.hitLine(mx, my);
       if (li != null) { selLine(li); zoomSelection(); renderSylList(); }
@@ -463,8 +543,8 @@ const TL = {
       // molette : zoom · Maj ou geste horizontal (pavé tactile) : défilement
       if (e.shiftKey || Math.abs(dx) > Math.abs(dy)) {
         const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-        S.tlScroll += delta / (S.tlZoom * this.dpr) * this.dpr;
-        this.clampScroll(); this.invalidate();
+        S.tlScroll += delta / S.tlZoom;
+        this.clampScroll(); this.userScrolled(); this.invalidate();
       } else if (dy) {
         this.setZoom(S.tlZoom * Math.pow(1.0018, -dy), mx);
       }
@@ -480,6 +560,7 @@ const TL = {
     const c = this.c;
     if (this.drag) return;
     const [mx, my] = this.local(e);
+    const d = this.dpr;
 
     /* clic molette : saisir la timeline pour la faire glisser */
     if (e.button === 1) {
@@ -487,15 +568,24 @@ const TL = {
       capturePointer(c, e);
       this.drag = { mode: 'pan', x0: mx, s0: S.tlScroll };
       c.style.cursor = 'grabbing';
+      this.userScrolled();
       return;
     }
     if (e.button !== 0) return;
     hideCtx();
-    capturePointer(c, e);
+    this.hideTip();
     const z = this.zone(my);
 
-    /* règle et onde : prise en main de la tête de lecture */
+    /* règle et onde : prise en main de la tête de lecture.
+       Le second clic d'un double-clic ne déplace rien : « voir tout » ne
+       doit pas faire sauter la tête.                                     */
     if (z === 'ruler' || z === 'wave') {
+      const nowMs = performance.now();
+      const dbl = nowMs - this.lastDownAt < 350 && Math.abs(mx - this.lastDownX) < 6 * d;
+      this.lastDownAt = nowMs; this.lastDownX = mx;
+      if (dbl) return;
+      this.curBeforeDown = S.cur;
+      capturePointer(c, e);
       const grabbed = this.nearHead(mx);
       this.startScrub();
       this.drag = { mode: 'scrub', grabbed };
@@ -503,6 +593,7 @@ const TL = {
       this.repaint();
       return;
     }
+    capturePointer(c, e);
 
     /* piste des lignes : sélectionner la ligne, la glisser en bloc */
     if (z === 'lane') {
@@ -510,12 +601,13 @@ const TL = {
       if (li == null) { this.drag = { mode: 'scrub', grabbed: false }; this.startScrub(); this.scrubTo(this.x2t(mx), true); return; }
       selLine(li);
       const items = S.lines[li].syls.map((s, si) => ({ li, si, o0: s.t0, o1: s.t1 })).filter(o => o.o0 != null);
+      const after = S.ripple ? this.linesAfter(li) : null;
       this.drag = {
         mode: 'line', li, x0: mx, grab: this.x2t(mx), pending: true, moved: false,
-        items, keys: new Set(items.map(o => sk(o.li, o.si))), prim: items[0],
-        after: S.ripple ? this.linesAfter(li) : null, seekTo: lineSpan(S.lines[li])[0]
+        items, keys: new Set(items.concat(after || []).map(o => sk(o.li, o.si))), prim: items[0],
+        after, seekTo: lineSpan(S.lines[li])[0]
       };
-      renderSylList(); this.invalidate();
+      renderSylList(); this.invalidateBlocks();
       return;
     }
     if (z !== 'syl') { this.releaseCapture(e); return; }
@@ -529,12 +621,14 @@ const TL = {
       return;
     }
 
-    /* lasso dans le vide */
+    /* lasso dans le vide — Alt retire de la sélection */
     if (!h) {
-      const add = e.ctrlKey || e.metaKey || e.shiftKey;
-      if (!add) { selClear(); renderSylList(); }
-      this.drag = { mode: 'lasso', x0: mx, y0: my, x1: mx, y1: my, add };
-      this.invalidate();
+      const sub = e.altKey;
+      const add = !sub && (e.ctrlKey || e.metaKey || e.shiftKey);
+      if (!add && !sub) { selClear(); renderSylList(); }
+      const ta = this.x2t(mx);
+      this.drag = { mode: 'lasso', ta, tb: ta, y0: my, y1: my, add, sub };
+      this.invalidateBlocks();
       return;
     }
 
@@ -542,7 +636,7 @@ const TL = {
     if (e.shiftKey) selRangeTo(h.li, h.si);
     else if (e.ctrlKey || e.metaKey) {
       selToggle(h.li, h.si);
-      if (!selHas(h.li, h.si)) { renderSylList(); this.invalidate(); this.releaseCapture(e); return; }
+      if (!selHas(h.li, h.si)) { renderSylList(); this.invalidateBlocks(); this.releaseCapture(e); return; }
     }
     else if (!selHas(h.li, h.si)) { selOne(h.li, h.si); seek(h.t0); }
     else { S.sel = { line: h.li, syl: h.si }; selectOnUp = true; }   // un clic sans glisser réduira la sélection
@@ -550,15 +644,14 @@ const TL = {
     const items = (h.edge === 'M' ? selList() : [{ li: h.li, si: h.si, s: S.lines[h.li].syls[h.si] }])
       .filter(o => o.s.t0 != null)
       .map(o => ({ li: o.li, si: o.si, o0: o.s.t0, o1: o.s.t1, oe: sylEnd(S.lines[o.li], o.si) }));
-    const keys = new Set(items.map(o => sk(o.li, o.si)));
     const prim = items.find(o => o.li === h.li && o.si === h.si) || items[0];
+    const after = S.ripple && h.edge === 'M' ? this.afterOf(items) : null;
     this.drag = {
       mode: h.edge === 'M' ? 'move' : (h.edge === 'L' ? 'edgeL' : 'edgeR'),
       x0: mx, grab: this.x2t(mx), pending: true, moved: false, selectOnUp, h,
-      items, keys, prim,
-      after: S.ripple && h.edge === 'M' ? this.afterOf(items) : null
+      items, keys: new Set(items.concat(after || []).map(o => sk(o.li, o.si))), prim, after
     };
-    renderSylList(); this.invalidate();
+    renderSylList(); this.invalidateBlocks();
   },
 
   onMove(e) {
@@ -572,7 +665,7 @@ const TL = {
       return;
     }
     if (d.mode === 'scrub') { this.scrubTo(this.x2t(mx), e.altKey); return; }
-    if (d.mode === 'lasso') { d.x1 = mx; d.y1 = my; this.autoScroll(mx); this.repaint(); return; }
+    if (d.mode === 'lasso') { d.tb = this.x2t(mx); d.y1 = my; this.autoScroll(mx); this.repaint(); return; }
 
     if (d.pending) {
       if (Math.abs(mx - d.x0) < DRAG_PX * this.dpr) return;
@@ -586,7 +679,7 @@ const TL = {
 
     const raw = this.x2t(mx) - d.grab;
     const noSnap = e.altKey;
-    let dt = 0;
+    let dt = 0, tipTxt = '';
 
     if (d.mode === 'edgeL' || d.mode === 'edgeR') {
       const p = d.prim, s = S.lines[p.li].syls[p.si];
@@ -594,32 +687,36 @@ const TL = {
       const end = p.oe != null ? p.oe : p.o0 + .3;
       if (d.mode === 'edgeL') {
         const nt = this.snapTime(p.o0 + raw, d.keys, noSnap);
-        const lo = prev ? prev.t0 + MIN_SYL : 0;
-        s.t0 = clamp(nt, lo, end - MIN_SYL);
+        const lo = prev ? this.hardEnd(prev) : 0;
+        s.t0 = clamp(nt, lo, Math.max(lo, end - MIN_SYL));
         dt = s.t0 - p.o0;
+        tipTxt = `début ${fmtTime(s.t0)}   ${this.fmtDelta(dt)}`;
       } else {
         const nt = this.snapTime(end + raw, d.keys, noSnap);
         const hi = next ? next.t0 : Infinity;
         s.t1 = clamp(nt, s.t0 + MIN_SYL, Math.max(s.t0 + MIN_SYL, hi));
         dt = s.t1 - end;
+        tipTxt = `fin ${fmtTime(s.t1)}   ${this.fmtDelta(dt)}   ${Math.round((s.t1 - s.t0) * 1000)} ms`;
       }
     } else if (d.mode === 'move') {
       const nt = this.snapTime(d.prim.o0 + raw, d.keys, noSnap);
       const moving = d.after ? d.items.concat(d.after) : d.items;
-      const keys = d.after ? new Set([...d.keys, ...d.after.map(o => sk(o.li, o.si))]) : d.keys;
-      const [lo, hi] = this.moveBounds(moving, keys);
+      const [lo, hi] = this.moveBounds(moving, d.keys);
       dt = clamp(nt - d.prim.o0, lo, hi);
       for (const it of moving) {
         const s = S.lines[it.li].syls[it.si];
         s.t0 = it.o0 + dt;
         if (it.o1 != null) s.t1 = it.o1 + dt;
       }
+      const s = S.lines[d.prim.li].syls[d.prim.si];
+      tipTxt = `${fmtTime(s.t0)} → ${fmtTime(sylEnd(S.lines[d.prim.li], d.prim.si))}   ${this.fmtDelta(dt)}`
+        + (moving.length > 1 ? `   (${moving.length} syllabes)` : '');
     } else if (d.mode === 'line') {
       const nt = this.snapTime(d.prim.o0 + raw, d.keys, noSnap);
       const li = d.li;
       let lo = -Math.min(...d.items.map(o => o.o0)), hi = Infinity;
-      const prevSp = li > 0 ? this.spanBefore(li) : null;
-      if (prevSp != null) lo = Math.max(lo, prevSp + MIN_SYL - d.prim.o0);
+      const prevEnd = li > 0 ? this.spanBefore(li) : null;
+      if (prevEnd != null) lo = Math.max(lo, prevEnd + MIN_SYL - d.prim.o0);
       if (!d.after) { const nx = this.spanAfter(li); if (nx != null) hi = nx - MIN_SYL - Math.max(...d.items.map(o => o.o1 != null ? o.o1 : o.o0)); }
       dt = clamp(nt - d.prim.o0, lo, Math.max(lo, hi));
       for (const it of d.items.concat(d.after || [])) {
@@ -627,12 +724,17 @@ const TL = {
         s.t0 = it.o0 + dt;
         if (it.o1 != null) s.t1 = it.o1 + dt;
       }
+      const sp = lineSpan(S.lines[li]);
+      tipTxt = `ligne ${li + 1}   ${fmtTime(sp[0])} → ${fmtTime(sp[1])}   ${this.fmtDelta(dt)}`;
     }
     d.moved = true;
-    this.invalidate();
+    this.showTip(e, tipTxt);
+    this.invalidateBlocks();
     requestRender();
     docChanged();
   },
+
+  fmtDelta(dt) { const ms = Math.round(dt * 1000); return (ms > 0 ? '+' : '') + ms + ' ms'; },
 
   onUp(e) {
     const d = this.drag;
@@ -641,37 +743,47 @@ const TL = {
     this.releaseCapture(e);
     this.c.style.cursor = '';
     this.snapGuide = null;
+    this.hideTip();
 
     if (d.mode === 'pan') { this.invalidate(); return; }
     if (d.mode === 'scrub') { this.endScrub(); return; }
-    if (d.mode === 'lasso') { this.applyLasso(d); renderSylList(); this.invalidate(); return; }
+    if (d.mode === 'lasso') { this.applyLasso(d); renderSylList(); this.invalidateBlocks(); return; }
 
     if (d.pending) {
       // simple clic : aucun timing ne bouge
       if (d.mode === 'line') { seek(d.seekTo); }
       else if (d.selectOnUp) { selOne(d.h.li, d.h.si); seek(d.h.t0); }
-      renderSylList(); this.invalidate();
+      renderSylList(); this.invalidateBlocks();
       return;
     }
     if (d.moved) {
       refreshDuration();
+      if (S.loop) {                       // la boucle suit la ligne qu'on vient de déplacer
+        const L = S.lines[S.sel.line], sp = L && lineSpan(L);
+        S.loop = sp ? [Math.max(0, sp[0] - .35), sp[1] + .35] : null;
+        this.invalidate();
+      }
+      Undo.doc.scheduleCheck();           // le document a changé : modifié, autosave
       renderSylList(); requestRender();
     }
-    this.invalidate();
+    this.invalidateBlocks();
   },
 
+  /** Annule le geste en cours et remet tout comme avant (Échap, perte du pointeur). */
   cancelDrag() {
     const d = this.drag; if (!d) return;
     this.drag = null; this.snapGuide = null; this.c.style.cursor = '';
+    this.hideTip();
     if (d.mode === 'scrub') { this.endScrub(); return; }
     if (d.moved && d.items) {           // on remet tout comme avant le geste
       for (const it of d.items.concat(d.after || [])) {
-        const s = S.lines[it.li].syls[it.si];
+        const L = S.lines[it.li], s = L && L.syls[it.si];
         if (s) { s.t0 = it.o0; s.t1 = it.o1; }
       }
       renderSylList(); requestRender();
+      toast('Geste annulé');
     }
-    this.invalidate();
+    this.invalidateBlocks();
   },
 
   releaseCapture(e) {
@@ -687,34 +799,48 @@ const TL = {
     else if (mx > W - edge) v = mx - (W - edge);
     if (!v) return;
     S.tlScroll += v / (S.tlZoom * this.dpr) * .25;
-    this.clampScroll(); this.dirty = true;
+    this.clampScroll(); this.dirty = true; this.dirtyBlocks = true;
   },
+
+  showTip(e, txt) {
+    const tip = $('#tlTip'), c = this.c;
+    if (!txt) { this.hideTip(); return; }
+    tip.style.display = 'block';
+    tip.textContent = txt;
+    const r = c.getBoundingClientRect();
+    tip.style.left = clamp(e.clientX - r.left + 12, 0, Math.max(0, r.width - tip.offsetWidth - 4)) + 'px';
+    tip.style.top = Math.max(0, e.clientY - r.top - 28) + 'px';
+  },
+  hideTip() { const tip = $('#tlTip'); if (tip) tip.style.display = 'none'; },
 
   hover(e, mx, my) {
     const c = this.c;
     const z = this.zone(my);
     this.hoverT = z === 'syl' ? this.x2t(mx) : null;
-    if (S.tool === 'C') this.repaint();
+    this.hoverX = mx;
     const onRuler = z === 'ruler' || z === 'wave';
     const head = onRuler && this.nearHead(mx);
-    if (head !== this.onHead) { this.onHead = head; this.repaint(); }
+    if (head !== this.onHead) this.onHead = head;
     const h = z === 'syl' ? this.hitSyl(mx, my) : null;
     const lineHit = z === 'lane' ? this.hitLine(mx, my) : null;
+    const hk = h ? { li: h.li, si: h.si } : null;
+    if ((hk && (!this.hoverHit || this.hoverHit.li !== hk.li || this.hoverHit.si !== hk.si)) || (!hk && this.hoverHit)) {
+      this.hoverHit = hk; this.invalidateBlocks();
+    }
+    this.repaint();
     c.style.cursor = head ? 'ew-resize'
       : S.tool === 'C' ? 'crosshair'
         : h ? (h.edge === 'M' ? 'grab' : 'ew-resize')
           : lineHit != null ? 'grab'
-            : (onRuler || z === 'lane') ? 'text' : 'default';
-    const tip = $('#tlTip');
+            : onRuler ? 'col-resize' : 'default';
     if (h) {
       const L = S.lines[h.li], s = L.syls[h.si];
-      tip.style.display = 'block';
-      tip.textContent = `${h.li + 1}·${h.si + 1}  « ${s.t.trim()} »   ${fmtTime(s.t0)} → ${fmtTime(h.t1)}   ${Math.round((h.t1 - s.t0) * 1000)} ms`
-        + (h.edge !== 'M' ? (h.edge === 'L' ? '   ⇤ début' : '   fin ⇥') : '');
-      const r = c.getBoundingClientRect();
-      tip.style.left = clamp(e.clientX - r.left + 12, 0, Math.max(0, r.width - tip.offsetWidth - 4)) + 'px';
-      tip.style.top = Math.max(0, e.clientY - r.top - 28) + 'px';
-    } else tip.style.display = 'none';
+      this.showTip(e, `${h.li + 1}·${h.si + 1}  « ${s.t.trim()} »   ${fmtTime(s.t0)} → ${fmtTime(h.t1)}   ${Math.round((h.t1 - s.t0) * 1000)} ms`
+        + (h.edge !== 'M' ? (h.edge === 'L' ? '   ⇤ début' : '   fin ⇥') : ''));
+    } else if (lineHit != null) {
+      const sp = lineSpan(S.lines[lineHit]);
+      this.showTip(e, `ligne ${lineHit + 1}   ${fmtTime(sp[0])} → ${fmtTime(sp[1])}   glisser pour déplacer en bloc`);
+    } else this.hideTip();
   },
 
   /** Syllables located after the last dragged one — used by ripple mode. */
@@ -734,24 +860,43 @@ const TL = {
       S.lines[j].syls.forEach((s, si) => { if (s.t0 != null) out.push({ li: j, si, o0: s.t0, o1: s.t1 }); });
     return out;
   },
-  spanBefore(li) { for (let j = li - 1; j >= 0; j--) { const sp = lineSpan(S.lines[j]); if (sp) return sp[0]; } return null; },
+  /** Fin de la ligne calée précédente / début de la suivante. */
+  spanBefore(li) { for (let j = li - 1; j >= 0; j--) { const sp = lineSpan(S.lines[j]); if (sp) return sp[1]; } return null; },
   spanAfter(li) { for (let j = li + 1; j < S.lines.length; j++) { const sp = lineSpan(S.lines[j]); if (sp) return sp[0]; } return null; },
 
   applyLasso(d) {
     const G = this.geo();
     const ry = Math.min(d.y0, d.y1), ry2 = Math.max(d.y0, d.y1);
     if (ry2 < G.sylY || ry > G.sylY + G.syl) return;
-    if (Math.abs(d.x1 - d.x0) < DRAG_PX * this.dpr) return;      // simple clic dans le vide
-    const a = this.x2t(Math.min(d.x0, d.x1)), b = this.x2t(Math.max(d.x0, d.x1));
-    if (!d.add) selClear();
+    const a = Math.min(d.ta, d.tb), b = Math.max(d.ta, d.tb);
+    if ((b - a) * S.tlZoom < DRAG_PX) return;                      // simple clic dans le vide
+    if (!d.add && !d.sub) selClear();
     let first = null;
     S.lines.forEach((L, li) => L.syls.forEach((s, si) => {
       if (s.t0 == null) return;
       const e = sylEnd(L, si); if (e == null) return;
-      if (e >= a && s.t0 <= b) { S.selSet.add(sk(li, si)); if (!first) first = { li, si }; }
+      if (e >= a && s.t0 <= b) {
+        if (d.sub) S.selSet.delete(sk(li, si));
+        else { S.selSet.add(sk(li, si)); if (!first) first = { li, si }; }
+      }
     }));
     if (first) S.sel = { line: first.li, syl: first.si };
   }
+};
+
+/* Couleurs du canevas — lues dans les variables CSS au premier dessin, pour
+   que la timeline suive le thème de l'interface.                           */
+const TLC = {
+  font: 'ui-monospace,Consolas,monospace',
+  bg: '#15171a', ruler: '#1a1d21', rulerTxt: '#9aa3ad', gridMajor: '#2c3139', gridMinor: '#22262c',
+  waveBg: '#121417', wave: '#3b7f93', waveMid: '#243a42', onset: 'rgba(63,184,216,.35)', onsetStrong: 'rgba(63,184,216,.7)',
+  loopFill: 'rgba(63,184,216,.07)', loopLine: 'rgba(63,184,216,.5)',
+  laneBg: '#191c20', laneLine: '#2c3139',
+  line: '#242930', lineAct: '#1f3640', lineEdge: '#343a43',
+  sylA: '#262c34', sylB: '#232931', sylSel: '#2a5f70', sylHover: '#2d343d',
+  acc: '#3fb8d8', accDim: 'rgba(63,184,216,.5)', white: '#ffffff', txt: '#e6e8eb', dim: '#9aa3ad', faint: '#5f6771',
+  head: '#3fb8d8', snap: '#e0a537', razor: '#e05a5a', cursor: 'rgba(230,232,235,.35)', cursorTxt: '#9aa3ad',
+  lassoFill: 'rgba(63,184,216,.12)', labelBg: 'rgba(21,23,26,.94)'
 };
 
 /* Le compteur de l'en-tête se pilote aussi à la souris : clic maintenu puis

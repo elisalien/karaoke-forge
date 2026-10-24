@@ -20,3 +20,8 @@ desktop.ini
 node_modules/
 graphify-out/
 captures-nuit/
+
+# Application de bureau (Electron) : dependances, dossier prepare, sorties
+desktop/node_modules/
+desktop/app/
+desktop/dist/

@@ -528,73 +528,207 @@ function sylEnd(L, i) {
   return s.t0 != null ? s.t0 + .35 : null;
 }
 /* ------------------------------------------------------------- annulation --- */
-/* Le calage à la main, c'est essayer, rater, recommencer. Chaque opération qui
-   touche aux timings prend un instantané ; Ctrl+Z revient dessus.            */
-/* `stack[idx]` est le dernier état enregistré. Le document vivant peut être
-   PLUS RÉCENT que lui : snap() est appelé juste avant une modification, donc
-   la modification elle-même n'entre dans la pile qu'au moment où on annule.
-   Ce détour permet d'appeler snap() avant ou après une opération, sans que
-   l'appelant ait à s'en soucier.                                            */
-const Undo = {
-  stack: [], idx: -1, max: 80, pending: 'modification',
+/* Le calage à la main, c'est essayer, rater, recommencer. Chaque opération
+   prend un instantané juste AVANT de modifier ; Ctrl+Z revient dessus.
 
-  /* Seuls le texte et les timings comptent : les marqueurs internes du rendu
-     (ex. __burst) ne doivent pas faire croire à une modification.        */
-  cur() { return JSON.stringify(cleanLines(S.lines)); },
+   Deux piles indépendantes, une par espace de travail :
+     · Undo.doc   — paroles, timings, titre (PRÉPARER)
+     · Undo.style — les réglages d'ambiance P (STYLE)
+   Ctrl+Z agit sur la pile de l'espace actif ; en LIVE rien n'est annulable.
 
-  push(data, label) {
-    this.stack.length = this.idx + 1;
-    this.stack.push({ data, label });
+   Invariant : `stack[idx]` est le dernier état ENREGISTRÉ ; l'état vivant
+   peut lui être postérieur d'une opération (celle qui a suivi le dernier
+   snap). Chaque entrée porte le nom de l'opération qui a PRODUIT cet état,
+   ce qui donne des messages justes : « Annulé : déplacer ».
+
+   Les opérations répétées (flèches tenues, curseur qu'on glisse) passent un
+   `group` : tant que le même groupe revient dans la seconde, elles ne font
+   qu'une seule étape.                                                        */
+class UndoStack {
+  constructor(opts) {
+    this.capture = opts.capture;        // → { key, aside } : key comparée, aside restaurée mais non comparée
+    this.apply = opts.apply;            // (entry) → remet l'état en place
+    this.onChange = opts.onChange;      // appelé quand une opération a réellement changé l'état
+    this.max = opts.max || 80;
+    this.coalesceMs = opts.coalesceMs || 900;
+    this.stack = []; this.idx = -1; this.pending = 'modification';
+    this.lastGroup = null; this.lastAt = 0; this.checking = false;
+  }
+
+  push(c, label) {
+    this.stack.length = this.idx + 1;             // nouvelle branche : le « rétablir » tombe
+    this.stack.push({ key: c.key, aside: c.aside, label });
     if (this.stack.length > this.max) this.stack.shift();
     this.idx = this.stack.length - 1;
-  },
+  }
 
-  snap(label) {
-    this.pending = label || 'modification';
-    Doc.linesDirty = true;
-    Doc.touch();
-    const data = this.cur();
-    // on repart dans une nouvelle branche : ce qu'il y avait à rétablir tombe
-    if (this.idx < this.stack.length - 1) this.stack.length = this.idx + 1;
-    if (this.idx >= 0 && this.stack[this.idx].data === data) return;  // déjà enregistré
-    this.push(data, this.pending);
-  },
+  /** À appeler AVANT une modification. */
+  snap(label, group) {
+    const t = performance.now();
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) {
+      // l'opération précédente n'est pas encore dans la pile : on l'y range,
+      // sauf si on est dans la même rafale (flèches tenues, curseur glissé)
+      const same = group && group === this.lastGroup && t - this.lastAt < this.coalesceMs;
+      if (!same) this.push(c, this.pending);
+    } else if (top) {
+      top.aside = c.aside;      // la sélection au moment de quitter cet état : c'est elle qu'on retrouvera
+    }
+    if (!top) this.push(c, 'état initial');
+    if (!(group && group === this.lastGroup && t - this.lastAt < this.coalesceMs)) this.pending = label || 'modification';
+    this.lastGroup = group || null; this.lastAt = t;
+    this.scheduleCheck();
+  }
 
-  restore(i) {
-    const e = this.stack[i]; if (!e) return false;
-    S.lines = JSON.parse(e.data);
-    S.selSet.clear();
-    S.sel = { line: clamp(S.sel.line, 0, Math.max(0, S.lines.length - 1)), syl: 0 };
-    S.dirtyLayout = true; S.dirtyMask = true;
-    if (typeof Mask !== 'undefined') Mask.li = -1;
-    return true;
-  },
+  /** Après l'opération : si l'état a vraiment changé, on le signale (modifié, autosave). */
+  scheduleCheck() {
+    if (this.checking || !this.onChange) return;
+    this.checking = true;
+    queueMicrotask(() => {
+      this.checking = false;
+      const top = this.stack[this.idx];
+      if (top && this.capture().key !== top.key) this.onChange();
+    });
+  }
+
+  /** Vrai si Ctrl+Z aurait un effet. */
+  canUndo() {
+    if (this.idx > 0) return true;
+    const top = this.stack[this.idx];
+    return !!top && this.capture().key !== top.key;
+  }
+  canRedo() { return this.idx >= 0 && this.idx < this.stack.length - 1 && this.capture().key === this.stack[this.idx].key; }
+  /** Nom de la prochaine opération annulable / rétablissable. */
+  undoLabel() {
+    const top = this.stack[this.idx]; if (!top) return '';
+    return this.capture().key !== top.key ? this.pending : (this.idx > 0 ? top.label : '');
+  }
+  redoLabel() { return this.canRedo() ? this.stack[this.idx + 1].label : ''; }
 
   undo() {
-    if (this.idx < 0) { toast('Rien à annuler'); return; }
-    const live = this.cur();
-    let label;
-    if (live !== this.stack[this.idx].data) {
-      // la modification en cours n'est pas encore dans la pile : on l'y range
-      // pour pouvoir la rétablir, puis on recule dessus
-      label = this.pending;
-      this.push(live, label);
-    } else {
-      if (this.idx === 0) { toast('Rien à annuler'); return; }
-      label = this.stack[this.idx].label;
-    }
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) this.push(c, this.pending);     // l'opération en cours entre dans la pile
+    if (this.idx <= 0) { toast('Rien à annuler'); return false; }
+    const leaving = this.stack[this.idx];
+    leaving.aside = c.aside;                                        // pour retrouver la sélection au rétablir
     this.idx--;
-    if (this.restore(this.idx)) { toast('Annulé : ' + label); afterUndo(); }
-  },
+    this.lastGroup = null;
+    this.apply(this.stack[this.idx]);
+    toast('Annulé : ' + leaving.label);
+    if (this.onChange) this.onChange();
+    return true;
+  }
 
   redo() {
-    if (this.idx >= this.stack.length - 1) { toast('Rien à rétablir'); return; }
+    const c = this.capture();
+    const top = this.stack[this.idx];
+    if (top && c.key !== top.key) { this.push(c, this.pending); toast('Rien à rétablir'); return false; }
+    if (this.idx >= this.stack.length - 1) { toast('Rien à rétablir'); return false; }
+    if (top) top.aside = c.aside;
     this.idx++;
-    if (this.restore(this.idx)) { toast('Rétabli : ' + this.stack[this.idx].label); afterUndo(); }
-  },
+    this.lastGroup = null;
+    this.apply(this.stack[this.idx]);
+    toast('Rétabli : ' + this.stack[this.idx].label);
+    if (this.onChange) this.onChange();
+    return true;
+  }
 
-  reset() { this.stack = []; this.idx = -1; this.pending = 'modification'; this.snap('état initial'); }
+  reset() {
+    this.stack = []; this.idx = -1; this.pending = 'modification'; this.lastGroup = null;
+    this.push(this.capture(), 'état initial');
+  }
+}
+
+const Undo = {
+  /* ---- document : paroles, timings, titre ---- */
+  doc: new UndoStack({
+    capture() {
+      const ta = document.getElementById('lyricsText');
+      return {
+        key: JSON.stringify({
+          lines: cleanLines(S.lines), lyrics: ta ? ta.value : '', ld: !!Doc.lyricsDirty,
+          title: S.song.title, artist: S.song.artist
+        }),
+        aside: { sel: { ...S.sel }, selSet: [...S.selSet], tapIdx: S.tapIdx }
+      };
+    },
+    apply(e) {
+      if (typeof TL !== 'undefined' && TL.drag) TL.cancelDrag();
+      if (S.tapMode && typeof setTap === 'function') setTap(false);
+      const d = JSON.parse(e.key);
+      S.lines = d.lines;
+      const ta = document.getElementById('lyricsText'); if (ta) ta.value = d.lyrics;
+      Doc.lyricsDirty = d.ld;
+      S.song.title = d.title; S.song.artist = d.artist;
+      const a = e.aside || {};
+      S.selSet = new Set((a.selSet || []).filter(k => { const [li, si] = k.split(':').map(Number); return S.lines[li] && S.lines[li].syls[si]; }));
+      const li = clamp((a.sel && a.sel.line) || 0, 0, Math.max(0, S.lines.length - 1));
+      const si = clamp((a.sel && a.sel.syl) || 0, 0, Math.max(0, (S.lines[li] ? S.lines[li].syls.length : 1) - 1));
+      S.sel = { line: li, syl: si };
+      S.tapIdx = clamp(a.tapIdx || 0, 0, allSyls().length);
+      if (S.loop) { const sp = S.lines[li] && lineSpan(S.lines[li]); S.loop = sp ? [Math.max(0, sp[0] - .35), sp[1] + .35] : null; }
+      S.dirtyLayout = true; S.dirtyMask = true;
+      if (typeof Mask !== 'undefined') Mask.li = -1;
+      afterUndo();
+    },
+    onChange() { Doc.linesDirty = true; Doc.touch(); updateUndoUi(); }
+  }),
+
+  /* ---- style : les réglages P (sans le fond d'incrustation du live) ---- */
+  style: new UndoStack({
+    capture() {
+      const p = typeof Live !== 'undefined' ? Live.docParams() : { ...P };
+      return { key: JSON.stringify(p), aside: null };
+    },
+    apply(e) {
+      const d = JSON.parse(e.key);
+      const key = typeof Live !== 'undefined' ? Live.keyColor : '';
+      if (key) Live.keyPrev = null;
+      for (const k in d) if (k in P) P[k] = d[k];
+      if (key) Live.setKey(key);            // le fond d'incrustation reste un état de soirée
+      S.dirtyLayout = true; S.dirtyMask = true;
+      if (typeof Mask !== 'undefined') Mask.li = -1;
+      syncPanels();
+      if (typeof resizeStage === 'function') resizeStage();
+      if (typeof Particles !== 'undefined') { Particles.resize(P.parMax); Particles.reset(); }
+      if (typeof Beat !== 'undefined') Beat.changed();
+      $$('#presets button').forEach(b => b.classList.remove('on'));
+      requestRender(); docChanged();
+    },
+    onChange() { Doc.touch(); updateUndoUi(); }
+  }),
+
+  /** La pile de l'espace actif ; aucune en LIVE. */
+  active() { return S.ws === 'style' ? this.style : S.ws === 'prep' ? this.doc : null; },
+
+  /* raccourcis historiques : les opérations sur les timings passent par ici */
+  snap(label, group) { this.doc.snap(label, group); },
+  undo() {
+    const u = this.active();
+    if (!u) { toast('Pas d\'annulation en LIVE : les morceaux restent tels quels pendant le show'); return; }
+    u.undo();
+  },
+  redo() { const u = this.active(); if (!u) return; u.redo(); },
+  reset() { this.doc.reset(); this.style.reset(); updateUndoUi(); }
 };
+
+/** Boutons ↶ ↷ de l'en-tête : état et infobulle suivent la pile active. */
+let _undoUiTimer = 0;
+function updateUndoUi() {
+  if (_undoUiTimer) return;
+  _undoUiTimer = requestAnimationFrame(() => {
+    _undoUiTimer = 0;
+    const bu = document.getElementById('bUndo'), br = document.getElementById('bRedo');
+    if (!bu || !br) return;
+    const u = Undo.active();
+    const cu = !!u && u.canUndo(), cr = !!u && u.canRedo();
+    bu.disabled = !cu; br.disabled = !cr;
+    bu.title = cu ? `Annuler : ${u.undoLabel()} (Ctrl+Z)` : (u ? 'Rien à annuler (Ctrl+Z)' : 'Pas d\'annulation en LIVE');
+    br.title = cr ? `Rétablir : ${u.redoLabel()} (Ctrl+Maj+Z)` : 'Rien à rétablir (Ctrl+Maj+Z)';
+  });
+}
 /* ------------------------------------------------------ filet de sécurité --- */
 /* Le travail de calage se compte en heures. Rien ne doit pouvoir l'effacer
    sans retour possible : sauvegarde automatique locale, drapeau « modifié »,
@@ -611,7 +745,9 @@ const Doc = {
     updateSaveState();
   },
 
-  clean() { this.dirty = false; this.linesDirty = false; updateSaveState(); },
+  /* Un enregistrement annule aussi l'autosave en attente : sinon un
+     document vide armé au démarrage écraserait la sauvegarde retrouvée. */
+  clean() { this.dirty = false; this.linesDirty = false; clearTimeout(this.timer); updateSaveState(); updateUndoUi(); },
 
   autosave() {
     try {
@@ -635,9 +771,12 @@ const Doc = {
 };
 
 function afterUndo() {
+  if (typeof refreshDuration === 'function') refreshDuration();
   renderSylList();
   TL.invalidate();
   requestRender();
+  if (typeof updateTapHud === 'function') updateTapHud();
+  updateSaveState();
 }
 
 /** Copie des lignes réduite à ce qui fait le document. */
@@ -736,6 +875,7 @@ function setUiMode(m) {
 
 function applyPreset(name) {
   const p = PRESETS[name]; if (!p) return;
+  Undo.style.snap('ambiance ' + name);
   for (const k in p) if (k in P) P[k] = p[k];
   S.dirtyLayout = true; S.dirtyMask = true;
   syncPanels();
@@ -801,7 +941,9 @@ function makeControl(k, label, type, opt) {
 
 function setParam(k, val) {
   if (P[k] === val) return;
+  Undo.style.snap('réglage « ' + ((PMETA[k] && PMETA[k].label) || k) + ' »', k);
   P[k] = val;
+  $$('#presets button.on').forEach(b => b.classList.remove('on'));   // l'ambiance n'est plus telle quelle
   if (LAYOUT_KEYS.has(k)) { S.dirtyLayout = true; S.dirtyMask = true; }
   if (k === 'resPreset' || k === 'previewScale') resizeStage();
   if (k === 'parMax') Particles.resize(P.parMax);

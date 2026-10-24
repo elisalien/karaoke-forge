@@ -13,6 +13,11 @@
     <button id="bStop" title="Retour au début" data-help="Arrête et revient à 00:00.">■</button>
     <div id="time" title="Clic maintenu + glissé pour se déplacer" data-help="Compteur — <em>clic maintenu puis glissé horizontal</em> pour parcourir le morceau. <em>Maj</em> rapide, <em>Alt</em> fin.">00:00.000 <span>/</span> 00:00.000</div>
     <div class="speed" id="speed" data-help="Ralenti — la musique joue moins vite pour te laisser le temps de frapper chaque syllabe. Les timings enregistrés restent ceux du morceau à vitesse normale."></div>
+    <div class="sep"></div>
+    <div class="undo" id="undoBar">
+      <button id="bUndo" aria-label="Annuler" title="Annuler (Ctrl+Z)" data-help="Annule la dernière opération de l'espace en cours : timings et paroles dans PRÉPARER, réglages dans STYLE. <em>Ctrl+Z</em>.">↶</button>
+      <button id="bRedo" aria-label="Rétablir" title="Rétablir (Ctrl+Maj+Z)" data-help="Rétablit ce qui vient d'être annulé. <em>Ctrl+Maj+Z</em>.">↷</button>
+    </div>
     <div class="spacer"></div>
     <span id="saveState" data-help="Le morceau ouvert, et s'il est rangé dans la bibliothèque."></span>
     <button id="bSave" title="Enregistrer dans la bibliothèque — Ctrl+S" data-help="Range le morceau (paroles, calage, style et audio) dans la bibliothèque du navigateur. Il sera prêt dans <em>LIVE</em>. <em>Ctrl+S</em>.">ENREGISTRER</button>
