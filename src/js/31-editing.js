@@ -69,6 +69,102 @@ function mergeSelection() {
   toast(`Fusion en « ${L.syls[a].t.trim()} »`);
 }
 
+/* ------------------------------------------------- presse-papiers de calage --- */
+/* Un refrain qui revient, un « la la la » répété : on copie le PLACEMENT des
+   syllabes sélectionnées (écarts et durées, pas le texte) et on le pose sur
+   d'autres syllabes — les suivantes (dupliquer) ou celles qu'on a choisies,
+   à la tête de lecture (coller). Le presse-papiers survit au changement de
+   morceau : un gabarit de couplet se réutilise.                              */
+const Clip = { pattern: null, from: '' };
+
+/** Le motif de la sélection : décalage depuis la première, durée explicite ou fin réelle pour la dernière. */
+function timingPattern(sel) {
+  const timed = sel.filter(o => o.s.t0 != null);
+  if (timed.length < 1) return null;
+  const base = timed[0].s.t0;
+  return timed.map((o, i) => {
+    const e = sylEnd(o.L, o.si);
+    const dur = o.s.t1 != null || i === timed.length - 1 ? (e != null ? e - o.s.t0 : null) : null;
+    return { off: o.s.t0 - base, dur, txt: o.s.t.trim() };
+  });
+}
+
+function copyTiming(quiet) {
+  const pat = timingPattern(selList());
+  if (!pat) { toast('Sélectionne des syllabes calées à copier', true); return false; }
+  Clip.pattern = pat;
+  Clip.from = pat.map(x => x.txt).join('').slice(0, 24);
+  if (!quiet) toast(`Calage copié : ${pat.length} syllabe${pat.length > 1 ? 's' : ''} — Ctrl+V le pose à la tête de lecture, Ctrl+D sur la suite`);
+  return true;
+}
+
+function cutTiming() {
+  if (!copyTiming(true)) return;
+  Undo.snap('couper le calage');
+  selList().forEach(o => { o.s.t0 = null; o.s.t1 = null; });
+  renderSylList(); TL.invalidateBlocks(); requestRender();
+  toast(`Calage coupé : ${Clip.pattern.length} syllabe${Clip.pattern.length > 1 ? 's' : ''} — Ctrl+V pour le poser ailleurs`);
+}
+
+/** Pose un motif sur `n` syllabes à partir de (li, si), la première à l'instant `at`.
+    Les syllabes suivantes de la ligne sont poussées si le motif les chevauche. */
+function applyPattern(pat, li, si, at, label) {
+  const flat = allSyls();
+  const start = flat.findIndex(o => o.li === li && o.si === si);
+  if (start < 0) { toast('Sélectionne la syllabe de départ', true); return false; }
+  const targets = flat.slice(start, start + pat.length);
+  if (targets.length < pat.length) toast(`Seulement ${targets.length} syllabe${targets.length > 1 ? 's' : ''} après le point de départ : le motif est tronqué`);
+  // on ne recule jamais sur une voisine déjà calée dans la même ligne
+  const first = targets[0];
+  const L0 = S.lines[first.li];
+  for (let j = first.si - 1; j >= 0; j--) { const n = L0.syls[j]; if (n.t0 != null) { at = Math.max(at, TL.hardEnd(n)); break; } }
+  Undo.snap(label);
+  const keys = new Set(targets.map(o => sk(o.li, o.si)));
+  targets.forEach((o, i) => {
+    o.s.t0 = Math.max(0, at + pat[i].off);
+    o.s.t1 = pat[i].dur != null ? o.s.t0 + pat[i].dur : null;
+  });
+  // ce qui suit dans les lignes touchées glisse si on le chevauche
+  for (const li2 of new Set(targets.map(o => o.li))) {
+    const L = S.lines[li2];
+    let prevEnd = null;
+    L.syls.forEach((x, xi) => {
+      if (x.t0 == null) return;
+      if (prevEnd != null && !keys.has(sk(li2, xi)) && x.t0 < prevEnd) {
+        const d = prevEnd - x.t0; x.t0 += d; if (x.t1 != null) x.t1 += d;
+      }
+      prevEnd = x.t1 != null ? x.t1 : x.t0 + MIN_SYL;
+    });
+  }
+  S.selSet = keys; S.sel = { line: first.li, syl: first.si };
+  refreshDuration(); renderSylList(); TL.invalidateBlocks(); requestRender();
+  return true;
+}
+
+/** Ctrl+V : le motif copié, à la tête de lecture (ou à `at`), sur les syllabes à partir de la sélection. */
+function pasteTiming(at) {
+  if (!Clip.pattern) { toast('Rien à coller : copie d\'abord un calage (Ctrl+C)', true); return; }
+  const t = at != null ? at : S.cur;
+  if (applyPattern(Clip.pattern, S.sel.line, S.sel.syl, t, 'coller le calage'))
+    toast(`Calage collé à ${fmtTime(t)} : ${Clip.pattern.length} syllabe${Clip.pattern.length > 1 ? 's' : ''}`);
+}
+
+/** Ctrl+D : le motif de la sélection, reposé sur les syllabes qui suivent, dans la foulée. */
+function duplicateTiming() {
+  const sel = selList();
+  const pat = timingPattern(sel);
+  if (!pat) { toast('Sélectionne des syllabes calées à dupliquer', true); return; }
+  const timed = sel.filter(o => o.s.t0 != null);
+  const last = timed[timed.length - 1];
+  const flat = allSyls();
+  const idx = flat.findIndex(o => o.li === last.li && o.si === last.si);
+  const next = flat[idx + 1];
+  if (!next) { toast('Rien après la sélection à caler', true); return; }
+  const at = sylEnd(last.L, last.si);
+  if (applyPattern(pat, next.li, next.si, at, 'dupliquer le calage'))
+    toast(`Calage dupliqué sur les ${Math.min(pat.length, flat.length - idx - 1)} syllabes suivantes — Ctrl+Z pour revenir`);
+}
+
 function clearTimingSelection() {
   const sel = selList();
   if (!sel.length) return;
@@ -178,6 +274,11 @@ function ctxMenuSyl(x, y, h) {
     { label: 'Effacer le timing', key: 'Suppr', fn: clearTimingSelection },
     { label: many ? 'Supprimer les syllabes' : 'Supprimer la syllabe', key: 'Maj+Suppr', cls: 'dgr', fn: deleteSelection },
     { sep: 1 },
+    { label: 'Copier le calage', key: 'Ctrl+C', fn: () => copyTiming() },
+    { label: 'Couper le calage', key: 'Ctrl+X', fn: cutTiming },
+    { label: 'Coller le calage à la tête de lecture', key: 'Ctrl+V', dis: !Clip.pattern, fn: () => pasteTiming() },
+    { label: 'Dupliquer le calage sur la suite', key: 'Ctrl+D', fn: duplicateTiming },
+    { sep: 1 },
     { label: 'Couper en deux', key: 'C puis clic', dis: many, fn: () => splitOrMerge(h.li, h.si, false) },
     { label: many ? 'Fusionner la sélection' : 'Fusionner avec la suivante', key: 'M', fn: () => many ? mergeSelection() : splitOrMerge(h.li, h.si, true) },
     { sep: 1 },
@@ -199,6 +300,8 @@ function ctxMenuLine(x, y, li) {
     { label: 'Lire cette ligne', fn: () => { const sp = lineSpan(L); if (sp) { seek(Math.max(0, sp[0] - .4)); play(); } } },
     { label: 'Boucler cette ligne', key: 'B', fn: () => { selLine(li); if (S.loop) toggleLoop(); toggleLoop(); } },
     { label: 'Sélectionner ses syllabes', fn: () => { selLine(li); renderSylList(); TL.invalidate(); } },
+    { label: 'Copier le calage de la ligne', key: 'Ctrl+C', fn: () => { selLine(li); copyTiming(); } },
+    { label: 'Dupliquer le calage sur la ligne suivante', key: 'Ctrl+D', fn: () => { selLine(li); duplicateTiming(); } },
     { label: 'Zoomer sur la ligne', fn: () => { selLine(li); zoomSelection(); renderSylList(); } },
     { sep: 1 },
     { label: 'Poser sur les attaques', fn: () => runOnsetAlign([li]) },
@@ -212,6 +315,7 @@ function ctxMenuEmpty(x, y, t) {
   showCtx(x, y, [
     { hd: 'Timeline' },
     { label: 'Placer la tête de lecture ici', fn: () => seek(t) },
+    { label: 'Coller le calage ici (sur la syllabe sélectionnée)', key: 'Ctrl+V', dis: !Clip.pattern, fn: () => pasteTiming(t) },
     { label: 'Tout désélectionner', key: 'Échap', fn: () => { selClear(); renderSylList(); TL.invalidate(); } },
     { sep: 1 },
     { label: 'Voir tout le morceau', key: 'F', fn: () => zoomFit() },

@@ -17,7 +17,7 @@ const { pathToFileURL } = require('url');
 
 /* En développement, l'app vit dans le dossier parent ; une fois empaquetée,
    prepare.mjs a copié karaoke-forge.html et companion/ dans desktop/app/.   */
-const APP_DIR = fs.existsSync(path.join(__dirname, 'app', 'karaoke-forge.html'))
+const APP_DIR = app.isPackaged || !fs.existsSync(path.join(__dirname, '..', 'karaoke-forge.html'))
   ? path.join(__dirname, 'app') : path.join(__dirname, '..');
 const SELFTEST = process.argv.includes('--selftest');
 const SCHEME = 'kf';

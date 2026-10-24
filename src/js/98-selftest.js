@@ -152,6 +152,32 @@ async function __selfTest() {
     Undo.doc.undo(); await tick();
     eq(ta.value, txt, 'Ctrl+Z remet le texte');
 
+    /* ---- 11b. copier / coller / dupliquer le calage ---- */
+    {
+      const L0 = S.lines[0], L1 = S.lines[1];
+      selLine(0); renderSylList();
+      copyTiming(true);
+      ok(Clip.pattern && Clip.pattern.length === L0.syls.length, 'motif de la ligne 1 copié');
+      const gaps0 = L0.syls.slice(1).map((x, i) => x.t0 - L0.syls[i].t0);
+      selOne(1, 0); S.cur = 30;
+      pasteTiming();
+      const n = Math.min(L0.syls.length, L1.syls.length);
+      const gaps1 = L1.syls.slice(1, n).map((x, i) => x.t0 - L1.syls[i].t0);
+      ok(Math.abs(L1.syls[0].t0 - 30) < 1e-9, 'collé à la tête de lecture');
+      ok(gaps1.every((g, i) => Math.abs(g - gaps0[i]) < 1e-9), 'écarts du motif conservés au collage');
+      eq(Undo.doc.undoLabel(), 'coller le calage', 'annulation nommée « coller le calage »');
+      Undo.doc.undo(); await tick();
+      selOne(2, 0); renderSylList();
+      const t2 = S.lines[2].syls[0].t0, e2 = sylEnd(S.lines[2], 0);
+      duplicateTiming();
+      ok(Math.abs(S.lines[2].syls[1].t0 - e2) < 1e-9 && Math.abs(S.lines[2].syls[0].t0 - t2) < 1e-9, 'dupliqué juste après la sélection');
+      Undo.doc.undo(); await tick();
+      selOne(0, 1); renderSylList();
+      cutTiming();
+      ok(S.lines[0].syls[1].t0 == null && Clip.pattern.length === 1, 'calage coupé et copié');
+      Undo.doc.undo(); await tick();
+    }
+
     /* ---- 12. application de bureau : le companion embarqué répond ---- */
     if (location.protocol === 'kf:') {
       let health = null;
@@ -159,7 +185,7 @@ async function __selfTest() {
       ok(!!health, 'companion embarqué joignable sur 127.0.0.1:17002');
     }
   } catch (e) {
-    console.error('[autotest] exception', e);
+    console.error('[autotest] exception', e && e.stack || e);
     failed.push('exception : ' + (e && e.message || e));
   }
   return { ok: !failed.length, passed, failed };

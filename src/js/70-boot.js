@@ -349,6 +349,10 @@ function onKey(e) {
 
   /* --- combinaisons --- */
   if (mod) {
+    if (low === 'c') { e.preventDefault(); copyTiming(); return; }
+    if (low === 'x') { e.preventDefault(); cutTiming(); return; }
+    if (low === 'v') { e.preventDefault(); pasteTiming(); return; }
+    if (low === 'd') { e.preventDefault(); if (!e.repeat) duplicateTiming(); return; }
     if (low === 'a') {
       e.preventDefault();
       // Ctrl+A : la ligne ; une seconde fois : tout le morceau

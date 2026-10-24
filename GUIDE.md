@@ -71,6 +71,7 @@ L'étape 4 ne montre que la **ligne sélectionnée** (`↑` `↓` pour changer, 
 - `I` et `O` calent début et fin sur la tête de lecture.
 - **Sur l'attaque** aimante les syllabes sélectionnées sur le départ de note le plus proche.
 - **Effacer le calage de la phrase** remet la ligne à zéro, le texte reste.
+- **Copier / coller un calage** : `Ctrl+C` copie le placement des syllabes sélectionnées (écarts et durées, pas le texte). Sélectionne la première syllabe de la reprise, place la tête de lecture, `Ctrl+V` : le refrain est calé à l'identique. `Ctrl+X` coupe (copie et efface), `Ctrl+D` duplique le motif sur les syllabes qui suivent, dans la foulée — pratique pour un « la la la ». Les syllabes suivantes glissent si le motif les chevauche. Tout cela aussi par clic droit dans la timeline.
 
 Cale seulement la première et la dernière syllabe d'une ligne, puis **Poser sur les attaques** ou **Répartir régulièrement** place les autres.
 
@@ -112,6 +113,7 @@ Un glissé ne commence qu'après quelques pixels. Une syllabe s'arrête au conta
 | Zoom · tout voir | `+` `−` · `F` |
 | Effacer le timing · supprimer les syllabes | `Suppr` · `Maj+Suppr` |
 | Fusionner · sélectionner la ligne (deux fois : tout) | `M` · `Ctrl+A` |
+| Copier · couper · coller · dupliquer le calage | `Ctrl+C` · `Ctrl+X` · `Ctrl+V` · `Ctrl+D` |
 | Ranger · exporter le projet · exporter la vidéo | `Ctrl+S` · `Ctrl+Maj+S` · `Ctrl+E` |
 
 **Découpe syllabique.** L'algorithme gère les cas courants du français. Pour corriger : un tiret dans les paroles (`ma-gni-fi-que`), `Alt`+clic dans la liste pour couper, `Alt`+`Maj`+clic pour fusionner, ou l'outil lame.

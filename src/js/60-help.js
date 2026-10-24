@@ -25,6 +25,9 @@ function keyMap() {
       [K('Maj') + '+' + K('←') + K('→'), 'Décaler la sélection de 10 ms (' + K('Alt') + ' en plus : 1 ms)'],
       [K('I') + ' / ' + K('O'), 'Début / fin de la syllabe sur la tête de lecture'],
       [K('M'), 'Fusionner les syllabes sélectionnées'],
+      [K('Ctrl') + '+' + K('C') + ' / ' + K('X'), 'Copier / couper le calage des syllabes sélectionnées (écarts et durées)'],
+      [K('Ctrl') + '+' + K('V'), 'Coller ce calage à la tête de lecture, sur les syllabes à partir de la sélection'],
+      [K('Ctrl') + '+' + K('D'), 'Dupliquer le calage de la sélection sur les syllabes qui suivent'],
       [K('Suppr') + ' / ' + K('Maj') + '+' + K('Suppr'), 'Effacer le timing / supprimer les syllabes'],
       [K('Ctrl') + '+' + K('A'), 'Sélectionner la ligne, une seconde fois tout le morceau'],
       [K('B'), 'Boucler la ligne'],
@@ -88,7 +91,9 @@ function helpSections() {
       [K('Maj') + '+' + K('←') + K('→'), 'Décaler la sélection de 10 ms — tenir la touche ne fait qu\'une étape d\'annulation'],
       [K('I') + ' / ' + K('O'), 'Caler le début / la fin sur la tête de lecture'],
       ['Sur l\'attaque', 'Aimanter la sélection sur le départ de note le plus proche'],
-      [K('Ctrl') + '+' + K('Z'), 'Annuler — la sélection reste en place pour recommencer autrement']
+      [K('Ctrl') + '+' + K('Z'), 'Annuler — la sélection reste en place pour recommencer autrement'],
+      [K('Ctrl') + '+' + K('C') + ' puis ' + K('Ctrl') + '+' + K('V'), 'Un refrain qui revient : copie son calage, sélectionne la première syllabe de la reprise, place la tête, colle'],
+      [K('Ctrl') + '+' + K('D'), 'Un « la la la » : cale le premier, duplique sur les suivants']
     ]], ['p',
       `Une ligne entière à refaire ? Cale sa première et sa dernière syllabe — ou importe des paroles synchronisées — puis ` +
       `<b>Poser sur les attaques</b> place les autres sur les vrais départs de notes détectés dans l'audio, ` +
