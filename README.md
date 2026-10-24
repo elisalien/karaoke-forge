@@ -54,7 +54,9 @@ Le companion est **intégré** à l'application de bureau. Il n'y a rien à lanc
 
 ### Sans installer : dans le navigateur
 
-Le cœur de l'application est un seul fichier, `karaoke-forge.html`. Double-clic sur **`START-FORGE.bat`** l'ouvre dans Chrome ou Edge avec un petit serveur local, et lance le companion si Node.js est présent (`START-COMPANION.bat` le lance seul). Voir [companion/LISEZ-MOI.md](companion/LISEZ-MOI.md).
+Le cœur de l'application est un seul fichier, `karaoke-forge.html`. Télécharge le [code source](https://github.com/elisalien/karaoke-forge/archive/refs/heads/main.zip) et décompresse-le ; double-clic sur **`START-FORGE.bat`** ouvre l'app dans Chrome ou Edge avec un petit serveur local, et lance le companion si Node.js est présent (`START-COMPANION.bat` le lance seul). Voir [companion/LISEZ-MOI.md](companion/LISEZ-MOI.md).
+
+Il n'y a plus de script d'installation (`INSTALLER.bat`) : l'installeur `.exe` de la [dernière version](https://github.com/elisalien/karaoke-forge/releases/latest) le remplace.
 
 ## Raccourcis essentiels
 
